@@ -6,14 +6,23 @@ never build queries. Writes flush but do not commit — the calling
 service owns the transaction boundary.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import ColumnElement, extract, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authz import Role
-from app.modules.users.models import Patient, Provider, ProviderStaff, User
+from app.modules.users.models import (
+    DuplicateReviewItem,
+    Patient,
+    PatientMerge,
+    Provider,
+    ProviderStaff,
+    ReviewStatus,
+    User,
+)
 
 
 async def get_user_by_email(session: AsyncSession, email: str) -> User | None:
@@ -25,26 +34,20 @@ async def get_user_by_id(session: AsyncSession, user_id: UUID) -> User | None:
     return await session.get(User, user_id)
 
 
-async def create_user(
-    session: AsyncSession, *, email: str, password_hash: str, role: Role
-) -> User:
+async def create_user(session: AsyncSession, *, email: str, password_hash: str, role: Role) -> User:
     user = User(email=email, password_hash=password_hash, role=role)
     session.add(user)
     await session.flush()
     return user
 
 
-async def set_password_hash(
-    session: AsyncSession, user_id: UUID, password_hash: str
-) -> None:
+async def set_password_hash(session: AsyncSession, user_id: UUID, password_hash: str) -> None:
     await session.execute(
         update(User).where(User.id == user_id).values(password_hash=password_hash)
     )
 
 
-async def mark_email_verified(
-    session: AsyncSession, user_id: UUID, verified_at: datetime
-) -> None:
+async def mark_email_verified(session: AsyncSession, user_id: UUID, verified_at: datetime) -> None:
     await session.execute(
         update(User).where(User.id == user_id).values(email_verified_at=verified_at)
     )
@@ -70,9 +73,7 @@ async def create_patient(
     return patient
 
 
-async def set_patient_locale(
-    session: AsyncSession, patient_id: UUID, locale: str
-) -> None:
+async def set_patient_locale(session: AsyncSession, patient_id: UUID, locale: str) -> None:
     await session.execute(
         update(Patient).where(Patient.id == patient_id).values(locale_preference=locale)
     )
@@ -85,7 +86,105 @@ async def get_provider_by_id(session: AsyncSession, provider_id: UUID) -> Provid
 async def get_provider_staff_by_user_id(
     session: AsyncSession, user_id: UUID
 ) -> ProviderStaff | None:
-    result = await session.execute(
-        select(ProviderStaff).where(ProviderStaff.user_id == user_id)
-    )
+    result = await session.execute(select(ProviderStaff).where(ProviderStaff.user_id == user_id))
     return result.scalar_one_or_none()
+
+
+# --- Duplicate detection (P4.1, #52) ---------------------------------------
+
+
+async def blocked_candidates(session: AsyncSession, subject: Patient) -> list[Patient]:
+    """Every Patient other than `subject` sharing a birth year, a phone,
+    or a trigram hit on the (raw, un-normalised) name (database.md,
+    "Duplicate detection"). `%` is pg_trgm's similarity operator —
+    index-backed by `ix_patient_full_name_trgm` (migration 0008), so this
+    is not a sequential scan over the whole table.
+    """
+    conditions: list[ColumnElement[bool]] = [Patient.full_name.op("%")(subject.full_name)]
+    if subject.date_of_birth is not None:
+        conditions.append(extract("year", Patient.date_of_birth) == subject.date_of_birth.year)
+    if subject.phone is not None:
+        conditions.append(Patient.phone == subject.phone)
+
+    stmt = select(Patient).where(
+        Patient.id != subject.id,
+        Patient.merged_into_id.is_(None),
+        or_(*conditions),
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def upsert_review_item(
+    session: AsyncSession, *, patient_id_a: UUID, patient_id_b: UUID, score: Decimal
+) -> DuplicateReviewItem | None:
+    """Inserts a `PENDING` review item, or refreshes the score on an
+    existing `PENDING` one. A pair already decided (`MERGED` or
+    `NOT_DUPLICATE`) is left untouched — decided pairs are never
+    re-flagged (ADR-0011).
+    """
+    a, b = sorted((patient_id_a, patient_id_b), key=str)
+    existing = await session.execute(
+        select(DuplicateReviewItem).where(
+            DuplicateReviewItem.patient_id_a == a, DuplicateReviewItem.patient_id_b == b
+        )
+    )
+    item = existing.scalar_one_or_none()
+    if item is not None:
+        if item.status != ReviewStatus.PENDING:
+            return None
+        item.score = score
+        return item
+
+    item = DuplicateReviewItem(patient_id_a=a, patient_id_b=b, score=score)
+    session.add(item)
+    await session.flush()
+    return item
+
+
+async def list_pending_review_items(session: AsyncSession) -> list[DuplicateReviewItem]:
+    """Every `PENDING` review item — the admin duplicate-review queue
+    (#54). Decided pairs (`MERGED` / `NOT_DUPLICATE`) never resurface here."""
+    result = await session.execute(
+        select(DuplicateReviewItem)
+        .where(DuplicateReviewItem.status == ReviewStatus.PENDING)
+        .order_by(DuplicateReviewItem.score.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def set_review_status(
+    session: AsyncSession,
+    *,
+    patient_id_a: UUID,
+    patient_id_b: UUID,
+    status: ReviewStatus,
+    decided_by_user_id: UUID,
+) -> DuplicateReviewItem:
+    a, b = sorted((patient_id_a, patient_id_b), key=str)
+    existing = await session.execute(
+        select(DuplicateReviewItem).where(
+            DuplicateReviewItem.patient_id_a == a, DuplicateReviewItem.patient_id_b == b
+        )
+    )
+    item = existing.scalar_one_or_none()
+    if item is None:
+        item = DuplicateReviewItem(patient_id_a=a, patient_id_b=b, score=Decimal("0"))
+        session.add(item)
+
+    item.status = status
+    item.decided_by_user_id = decided_by_user_id
+    item.decided_at = datetime.now(UTC)
+    await session.flush()
+    return item
+
+
+async def list_unreversed_merges(session: AsyncSession) -> list[PatientMerge]:
+    """Merges still open to reversal, newest first — the admin reversal
+    queue. Reversed merges drop out, as decided review items do."""
+    result = await session.execute(
+        select(PatientMerge)
+        .where(PatientMerge.reversed_at.is_(None))
+        .order_by(PatientMerge.occurred_at.desc())
+    )
+    return list(result.scalars().all())

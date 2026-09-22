@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Callout } from "@/components/ui/Callout";
+import { NavLink } from "@/components/ui/NavLink";
 import { useRouter } from "@/i18n/navigation";
+import { routing } from "@/i18n/routing";
 import { api, ApiError } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { useApiErrorMessage } from "@/lib/errors";
@@ -85,14 +87,14 @@ export default function ProfilePage() {
   }
 
   const { profile } = state;
-  const localeLabel =
-    profile.localePreference === "en" || profile.localePreference === "hi"
-      ? tLocale(profile.localePreference)
-      : profile.localePreference;
+  const localeLabel = (routing.locales as readonly string[]).includes(profile.localePreference)
+    ? tLocale(profile.localePreference as (typeof routing.locales)[number])
+    : profile.localePreference;
 
   const show = (value: string | null): string => value?.trim() || EMPTY;
 
   const rows: Array<[string, string]> = [
+    [t("fields.patientId"), profile.id],
     [t("fields.fullName"), show(profile.fullName)],
     [t("fields.dateOfBirth"), formatDate(profile.dateOfBirth) || EMPTY],
     [t("fields.sex"), show(profile.sex)],
@@ -111,7 +113,7 @@ export default function ProfilePage() {
         <p className="text-sm text-muted">{t("subtitle")}</p>
       </div>
 
-      <dl className="divide-y divide-border rounded-md border border-border bg-surface">
+      <dl className="divide-y divide-border rounded-xl border border-border bg-surface shadow-sm">
         {rows.map(([label, value]) => (
           <div
             key={label}
@@ -124,6 +126,19 @@ export default function ProfilePage() {
           </div>
         ))}
       </dl>
+      <p className="text-xs text-muted">{t("patientIdHint")}</p>
+
+      <div className="flex flex-wrap gap-4">
+        <NavLink href="/consent" variant="soft" icon="forward">
+          {t("links.consent")}
+        </NavLink>
+        <NavLink href="/audit" variant="soft" icon="forward">
+          {t("links.audit")}
+        </NavLink>
+        <NavLink href="/analytics" variant="soft" icon="forward">
+          {t("links.analytics")}
+        </NavLink>
+      </div>
     </section>
   );
 }

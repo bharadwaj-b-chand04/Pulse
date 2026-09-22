@@ -22,6 +22,12 @@ _BACKEND_DIR = Path(__file__).resolve().parents[1]
 _TARGETS = (
     _BACKEND_DIR / "app" / "modules" / "records" / "service.py",
     _BACKEND_DIR / "app" / "modules" / "records" / "repository.py",
+    # P4.3 (#54): admin reads identity + entry counts, never entry content,
+    # but a count is still derived from Medical Entry rows (ADR-0007) — the
+    # errors.md 2026-09-12 entry is exactly why this list grows here rather
+    # than staying records-only.
+    _BACKEND_DIR / "app" / "modules" / "admin" / "service.py",
+    _BACKEND_DIR / "app" / "modules" / "admin" / "repository.py",
 )
 
 # Substrings that mark a function as entry-returning by name.
@@ -55,9 +61,7 @@ def main() -> int:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and _returns_entries(
-                node
-            ):
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and _returns_entries(node):
                 if not _has_actor_param(node):
                     rel = path.relative_to(_BACKEND_DIR)
                     offenders.append(f"{rel}:{node.lineno} -> {node.name}() takes no `actor`")

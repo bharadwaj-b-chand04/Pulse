@@ -12,15 +12,19 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
       # --group dev pulls pytest, httpx and the testcontainers extras.
       - run: uv sync --group dev
       - run: uv run ruff check .
       - run: uv run mypy .
-      # Enforcement lints (ADR-0004 / ADR-0006 / backend.md). Cheap now, unpayable at sixty routes.
+      # Enforcement lints (ADR-0004 / ADR-0006 / clinical-safety.md). Cheap
+      # now, unpayable at sixty routes.
       - run: uv run python scripts/lint_cross_module_imports.py
       - run: uv run python scripts/lint_entry_query.py
+      # Actor-first (errors.md 2026-09-12): personal-data readers take an
+      # actor. Lives in CI rather than review, as that entry's rule demands.
+      - run: uv run python scripts/lint_actor_first.py
       - run: uv run python scripts/stub_inventory.py
       # ubuntu-latest ships a working Docker daemon; testcontainers starts real
       # Postgres + Redis, so no services: block is needed.
@@ -32,8 +36,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - run: npm ci
@@ -44,17 +48,22 @@ jobs:
 
   frontend-e2e:
     runs-on: ubuntu-latest
-    # No-op until another agent commits the Playwright config; the guard skips
-    # the whole job while frontend/playwright.config.ts is absent.
-    if: hashFiles('frontend/playwright.config.ts') != ''
     defaults:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      # No-op until another agent commits the Playwright config. `hashFiles`
+      # needs the checkout to exist first — it errors as an unrecognized
+      # function in a job-level `if:`, which is evaluated before any runner
+      # (and its filesystem) is assigned. Step-level works.
+      - if: hashFiles('frontend/playwright.config.ts') != ''
+        uses: actions/setup-node@v7
         with:
           node-version: 24
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npx playwright test
+      - if: hashFiles('frontend/playwright.config.ts') != ''
+        run: npm ci
+      - if: hashFiles('frontend/playwright.config.ts') != ''
+        run: npx playwright install --with-deps chromium
+      - if: hashFiles('frontend/playwright.config.ts') != ''
+        run: npx playwright test

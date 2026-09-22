@@ -1,0 +1,29 @@
+{
+  "title": "Patient record",
+  "subtitle": "Every entry you have access to, newest first.",
+  "loading": "Loading the record…",
+  "error": {
+    "title": "Could not load this record",
+    "retry": "Try again"
+  },
+  "empty": {
+    "title": "No entries",
+    "body": "Nothing has been filed to this record yet."
+  },
+  "notFound": {
+    "title": "Record not found",
+    "body": "We could not find that record."
+  },
+  "loadMore": "Load more",
+  "loadingMore": "Loading more…",
+  "detail": {
+    "back": "Back to patient record"
+  },
+  "breakGlass": {
+    "title": "Emergency access",
+    "body": "No consent covers you for this patient. In an emergency you can open the record for 60 minutes. Your justification is recorded in the audit log and the patient is notified immediately.",
+    "justification": "Justification",
+    "required": "Enter a justification.",
+    "submit": "Request emergency access"
+  }
+}

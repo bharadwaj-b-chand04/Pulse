@@ -265,6 +265,26 @@ def build_providers(bundle: Bundle) -> None:
         )
 
 
+def build_administrator(bundle: Bundle) -> None:
+    """One seeded Administrator with a working demo login.
+
+    Closes the gap the demo script had to work around by hand (an in-app
+    SQL `UPDATE` promoting a Provider-staff row, which also stole that
+    account's role): `ADMINISTRATOR` now exists in the committed dataset
+    like any other role. Admin screens read identity data and counts only
+    (ADR-0007), so the row carries no Patient and no clinical data by
+    construction.
+    """
+    bundle.users.append(
+        UserRow(
+            id=str(common.det_uuid("admin-user", "administrator")),
+            email="admin0@example.com",
+            role="ADMINISTRATOR",
+            demo_login="1",
+        )
+    )
+
+
 # --- planting ---------------------------------------------------------
 
 
@@ -455,11 +475,12 @@ def write_manifest(bundle: Bundle, hashes: dict, clinical_counts: dict) -> None:
             "planted_near_miss_pairs":
                 sum(1 for p in bundle.planted if p["kind"] == "near_miss"),
         },
-        "clinical_rows_committed_not_loaded": clinical_counts,
+        "clinical_rows_committed": clinical_counts,
         "identity_csv_sha256": hashes,
         "note": (
-            "Phase 1 loads identity only. clinical/ is committed for Phase 2 "
-            "and is not read by the first-boot loader."
+            "Phase 1 loaded identity only. From P2.4 the first-boot loader also "
+            "reads clinical/ and inserts a capped selection of Medical Entries "
+            "per Patient."
         ),
     }
     (common.DATA_DIR / "MANIFEST.json").write_text(
@@ -476,10 +497,11 @@ def _write_clinical_readme(counts: dict[str, int]) -> None:
         "(`conditions`, `procedures`), LOINC (`observations`), RxNorm",
         "(`medications`).",
         "",
-        "**Not loaded in Phase 1.** Phase 1 has no clinical tables (`medical_entry`",
-        "et al. are Phase 2). These files are committed now so the Phase 2 loader",
-        "has a fixed, reviewed dataset to build against. `seed_loader.py` never",
-        "reads this directory.",
+        "**Not loaded in Phase 1** -- Phase 1 has no clinical tables (`medical_entry`",
+        "et al. are Phase 2), so these files were committed ahead of time as a",
+        "fixed, reviewed dataset. From P2.4, `seed_loader.py` reads this directory",
+        "too and loads a capped, deterministic selection of Medical Entries per",
+        "Patient (real `(code_system, code)` pairs throughout; no code invented).",
         "",
         "US cost / payer / provider-identity columns are dropped in transform.",
         "Planted duplicate and near-miss Patients carry no clinical rows.",
@@ -498,6 +520,7 @@ def main() -> None:
     bundle = Bundle()
     overlay(bundle)
     build_providers(bundle)
+    build_administrator(bundle)
     plant(bundle)
     clinical_counts = transform_clinical()
     hashes = write_dataset(bundle)

@@ -10,20 +10,150 @@ import { routing } from "./routing";
 // Static imports (not a dynamic `import(\`...${ns}\`)`) so the bundler resolves
 // every catalog at build time and a missing file is a build error.
 import enCommon from "./messages/en/common.json";
+import enAdmin from "./messages/en/admin.json";
+import enAnalytics from "./messages/en/analytics.json";
 import enAuth from "./messages/en/auth.json";
+import enAudit from "./messages/en/audit.json";
+import enBreakGlass from "./messages/en/breakGlass.json";
+import enClinicianHome from "./messages/en/clinicianHome.json";
+import enClinicianRecords from "./messages/en/clinicianRecords.json";
+import enConsent from "./messages/en/consent.json";
+import enEntry from "./messages/en/entry.json";
 import enErrors from "./messages/en/errors.json";
+import enNotifications from "./messages/en/notifications.json";
 import enProfile from "./messages/en/profile.json";
+import enTimeline from "./messages/en/timeline.json";
 import hiCommon from "./messages/hi/common.json";
+import hiAdmin from "./messages/hi/admin.json";
+import hiAnalytics from "./messages/hi/analytics.json";
 import hiAuth from "./messages/hi/auth.json";
+import hiAudit from "./messages/hi/audit.json";
+import hiBreakGlass from "./messages/hi/breakGlass.json";
+import hiClinicianHome from "./messages/hi/clinicianHome.json";
+import hiClinicianRecords from "./messages/hi/clinicianRecords.json";
+import hiConsent from "./messages/hi/consent.json";
+import hiEntry from "./messages/hi/entry.json";
 import hiErrors from "./messages/hi/errors.json";
+import hiNotifications from "./messages/hi/notifications.json";
 import hiProfile from "./messages/hi/profile.json";
+import hiTimeline from "./messages/hi/timeline.json";
+import taCommon from "./messages/ta/common.json";
+import taAdmin from "./messages/ta/admin.json";
+import taAnalytics from "./messages/ta/analytics.json";
+import taAuth from "./messages/ta/auth.json";
+import taAudit from "./messages/ta/audit.json";
+import taBreakGlass from "./messages/ta/breakGlass.json";
+import taClinicianHome from "./messages/ta/clinicianHome.json";
+import taClinicianRecords from "./messages/ta/clinicianRecords.json";
+import taConsent from "./messages/ta/consent.json";
+import taEntry from "./messages/ta/entry.json";
+import taErrors from "./messages/ta/errors.json";
+import taNotifications from "./messages/ta/notifications.json";
+import taProfile from "./messages/ta/profile.json";
+import taTimeline from "./messages/ta/timeline.json";
+import mlCommon from "./messages/ml/common.json";
+import mlAdmin from "./messages/ml/admin.json";
+import mlAnalytics from "./messages/ml/analytics.json";
+import mlAuth from "./messages/ml/auth.json";
+import mlAudit from "./messages/ml/audit.json";
+import mlBreakGlass from "./messages/ml/breakGlass.json";
+import mlClinicianHome from "./messages/ml/clinicianHome.json";
+import mlClinicianRecords from "./messages/ml/clinicianRecords.json";
+import mlConsent from "./messages/ml/consent.json";
+import mlEntry from "./messages/ml/entry.json";
+import mlErrors from "./messages/ml/errors.json";
+import mlNotifications from "./messages/ml/notifications.json";
+import mlProfile from "./messages/ml/profile.json";
+import mlTimeline from "./messages/ml/timeline.json";
 
 type Catalog = Record<string, unknown>;
 
 const CATALOGS: Record<string, Catalog> = {
-  en: { ...enCommon, auth: enAuth, errors: enErrors, profile: enProfile },
-  hi: { ...hiCommon, auth: hiAuth, errors: hiErrors, profile: hiProfile },
+  en: {
+    ...enCommon,
+    admin: enAdmin,
+    analytics: enAnalytics,
+    auth: enAuth,
+    audit: enAudit,
+    breakGlass: enBreakGlass,
+    clinicianHome: enClinicianHome,
+    clinicianRecords: enClinicianRecords,
+    consent: enConsent,
+    entry: enEntry,
+    errors: enErrors,
+    notifications: enNotifications,
+    profile: enProfile,
+    timeline: enTimeline,
+  },
+  hi: {
+    ...hiCommon,
+    admin: hiAdmin,
+    analytics: hiAnalytics,
+    auth: hiAuth,
+    audit: hiAudit,
+    breakGlass: hiBreakGlass,
+    clinicianHome: hiClinicianHome,
+    clinicianRecords: hiClinicianRecords,
+    consent: hiConsent,
+    entry: hiEntry,
+    errors: hiErrors,
+    notifications: hiNotifications,
+    profile: hiProfile,
+    timeline: hiTimeline,
+  },
+  ta: {
+    ...taCommon,
+    admin: taAdmin,
+    analytics: taAnalytics,
+    auth: taAuth,
+    audit: taAudit,
+    breakGlass: taBreakGlass,
+    clinicianHome: taClinicianHome,
+    clinicianRecords: taClinicianRecords,
+    consent: taConsent,
+    entry: taEntry,
+    errors: taErrors,
+    notifications: taNotifications,
+    profile: taProfile,
+    timeline: taTimeline,
+  },
+  ml: {
+    ...mlCommon,
+    admin: mlAdmin,
+    analytics: mlAnalytics,
+    auth: mlAuth,
+    audit: mlAudit,
+    breakGlass: mlBreakGlass,
+    clinicianHome: mlClinicianHome,
+    clinicianRecords: mlClinicianRecords,
+    consent: mlConsent,
+    entry: mlEntry,
+    errors: mlErrors,
+    notifications: mlNotifications,
+    profile: mlProfile,
+    timeline: mlTimeline,
+  },
 };
+
+// A catalog awaiting translation ships every key with an empty-string value, so
+// translators see the full structure (P2.10). next-intl only raises
+// MISSING_MESSAGE for a key that is entirely absent -- a key present as "" is a
+// successful lookup that renders blank. That would make an untranslated locale
+// invisible in dev and CI, which is the one thing the guard below exists to
+// prevent, so empty leaves are dropped before the catalog is handed over: they
+// then throw in dev/CI and fall back to English in production.
+function pruneEmpty(catalog: Catalog): Catalog {
+  const out: Catalog = {};
+  for (const [key, value] of Object.entries(catalog)) {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const nested = pruneEmpty(value as Catalog);
+      if (Object.keys(nested).length > 0) out[key] = nested;
+    } else if (value !== "") {
+      out[key] = value;
+    }
+  }
+  return out;
+}
 
 function mergeCatalogs(base: Catalog, override: Catalog): Catalog {
   const out: Catalog = { ...base };
@@ -47,10 +177,11 @@ export default getRequestConfig(async ({ requestLocale }) => {
   // Dev and CI: use only the requested locale, so a missing key throws.
   // Production: layer the requested locale over an English base so a gap
   // degrades to English rather than crashing a live page.
+  const catalog = pruneEmpty(CATALOGS[locale]);
   const messages =
     isProduction && locale !== routing.defaultLocale
-      ? mergeCatalogs(CATALOGS[routing.defaultLocale], CATALOGS[locale])
-      : CATALOGS[locale];
+      ? mergeCatalogs(CATALOGS[routing.defaultLocale], catalog)
+      : catalog;
 
   return {
     locale,

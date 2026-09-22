@@ -18,20 +18,89 @@ class Role(StrEnum):
 class Permission(StrEnum):
     # A signed-in Patient reading their own Patient profile.
     PATIENT_PROFILE_READ_SELF = "PATIENT_PROFILE_READ_SELF"
+    # A Patient changing their own non-clinical preferences (interface locale).
+    PATIENT_PROFILE_UPDATE_SELF = "PATIENT_PROFILE_UPDATE_SELF"
     # Changing one's own credentials (password / email). Step-up guarded.
     USER_CREDENTIALS_CHANGE = "USER_CREDENTIALS_CHANGE"
+    # Reading Medical Entries. The route guard is coarse (a Role holds it or
+    # not); which entries the actor actually sees is decided per-request by
+    # `accessible_entries` (Phase 3). No Administrator holds it (ADR-0007).
+    RECORDS_READ = "RECORDS_READ"
+    # Filing Medical Entries / uploading Documents — Provider Staff only.
+    RECORDS_WRITE = "RECORDS_WRITE"
+    # A Patient managing and reviewing Consent over their own record.
+    CONSENT_READ_SELF = "CONSENT_READ_SELF"
+    CONSENT_MANAGE_SELF = "CONSENT_MANAGE_SELF"
+    # A Patient reading their own audit trail (filtered projection).
+    AUDIT_READ_SELF = "AUDIT_READ_SELF"
+    # A Patient reading their own notification digest.
+    NOTIFICATION_READ_SELF = "NOTIFICATION_READ_SELF"
+    # A Patient reading their own notification preferences.
+    NOTIFICATION_PREFERENCES_READ_SELF = "NOTIFICATION_PREFERENCES_READ_SELF"
+    # A Patient marking their own notifications read and changing their own
+    # per-type/per-channel preferences. Mandatory types are never settable
+    # through this — the service rejects it regardless of permission.
+    NOTIFICATION_MANAGE_SELF = "NOTIFICATION_MANAGE_SELF"
+    # Reading a Provider organisation's public identity (name, kind, city).
+    # No clinical data — every signed-in role may hold it.
+    PROVIDER_READ = "PROVIDER_READ"
+    # A Clinician requesting emergency access without Consent. Clinician
+    # only (#44) — a Provider Staff member already has Provider-scoped
+    # access, and no other role may bypass Consent this way.
+    BREAK_GLASS_REQUEST = "BREAK_GLASS_REQUEST"
+    # A Patient's own five data-quality flags, or an Administrator sweeping
+    # the queue (P4.3, #54). Identity-derived, informational only — never a
+    # clinical read, so this is the one analytics permission ADMINISTRATOR
+    # may hold. The service layer narrows further: a Patient may only ever
+    # read their own (`analytics.service._may_read_identity`).
+    ANALYTICS_DATA_QUALITY_READ = "ANALYTICS_DATA_QUALITY_READ"
+    # The duplicate-review queue and merge/reversal (P4.1/#52, P4.3/#54).
+    # Administrator only (ADR-0007, ADR-0011) — identity fields and entry
+    # counts, never clinical content.
+    ADMIN_DUPLICATE_REVIEW = "ADMIN_DUPLICATE_REVIEW"
 
 
 ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
     Role.PATIENT: frozenset(
         {
             Permission.PATIENT_PROFILE_READ_SELF,
+            Permission.PATIENT_PROFILE_UPDATE_SELF,
             Permission.USER_CREDENTIALS_CHANGE,
+            Permission.RECORDS_READ,
+            Permission.CONSENT_READ_SELF,
+            Permission.CONSENT_MANAGE_SELF,
+            Permission.AUDIT_READ_SELF,
+            Permission.NOTIFICATION_READ_SELF,
+            Permission.NOTIFICATION_PREFERENCES_READ_SELF,
+            Permission.NOTIFICATION_MANAGE_SELF,
+            Permission.PROVIDER_READ,
+            Permission.ANALYTICS_DATA_QUALITY_READ,
         }
     ),
-    Role.CLINICIAN: frozenset({Permission.USER_CREDENTIALS_CHANGE}),
-    Role.PROVIDER_STAFF: frozenset({Permission.USER_CREDENTIALS_CHANGE}),
-    Role.ADMINISTRATOR: frozenset({Permission.USER_CREDENTIALS_CHANGE}),
+    Role.CLINICIAN: frozenset(
+        {
+            Permission.USER_CREDENTIALS_CHANGE,
+            Permission.RECORDS_READ,
+            Permission.PROVIDER_READ,
+            Permission.BREAK_GLASS_REQUEST,
+        }
+    ),
+    Role.PROVIDER_STAFF: frozenset(
+        {
+            Permission.USER_CREDENTIALS_CHANGE,
+            Permission.RECORDS_READ,
+            Permission.RECORDS_WRITE,
+            Permission.PROVIDER_READ,
+        }
+    ),
+    Role.ADMINISTRATOR: frozenset(
+        {
+            Permission.USER_CREDENTIALS_CHANGE,
+            Permission.PROVIDER_READ,
+            Permission.ANALYTICS_DATA_QUALITY_READ,
+            Permission.ADMIN_DUPLICATE_REVIEW,
+        }
+    ),
 }
 
 
