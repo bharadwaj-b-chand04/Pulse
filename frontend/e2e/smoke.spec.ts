@@ -66,6 +66,23 @@ test("EN <-> HI toggle changes the URL locale prefix and a visible string", asyn
   await expect(page.getByRole("heading", { name: "साइन इन करें" })).toBeVisible();
 });
 
+// A locale switch remounts the [locale] layout client-side. next-themes' inline
+// theme script must not trip React 19's "Encountered a script tag" error then
+// (src/components/ThemeProvider.tsx).
+test("locale switch does not render a client-side script tag", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("console", (msg) => {
+    if (msg.type() === "error") errors.push(msg.text());
+  });
+
+  await page.goto("/en/login");
+  await page.getByRole("button", { name: "Language" }).click();
+  await page.getByRole("menuitemradio", { name: "हिन्दी" }).click();
+  await expect(page.getByRole("heading", { name: "साइन इन करें" })).toBeVisible();
+
+  expect(errors.filter((e) => e.includes("Encountered a script tag"))).toEqual([]);
+});
+
 test("locale switcher lists all four locales", async ({ page }) => {
   await page.goto("/en/login");
   await page.getByRole("button", { name: "Language" }).click();
