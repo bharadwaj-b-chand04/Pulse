@@ -158,10 +158,12 @@ Keep the Patient ID above ready to paste. There is no patient search.
    "No clinician is registered with that email."
 
 6. **Clinician reads.** In the Clinician window, click **Clinician**.
-   You land on "Clinician access" (`/en/clinician`). Paste the Patient ID
-   and click "Open record". The Diagnosis entry is listed. Open it.
+   You land on "Clinician access" (`/en/clinician`). Click the Patient's
+   name under "Patients who have given you access". The Diagnosis entry
+   is listed. Open it.
    *Say:* this works because of the consent grant. The Clinician role on
-   its own gives no access.
+   its own gives no access, and the list is never cached — revoke it and
+   the name disappears on the next load, not on some later expiry.
 
 7. **Audit view.** In the Patient window, open `/en/audit` ("Who
    accessed my records"). The clinician's read is listed with their name
