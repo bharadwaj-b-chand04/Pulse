@@ -7,6 +7,9 @@ import { expect, test, type Page } from "@playwright/test";
 // collide, mirroring three separate people in the demo.
 
 const PATIENT_ID = "0c96112a-1653-5403-999c-30ec1ef6dda8";
+// clinician0's user id (seed/data/identity). The consent list titles each
+// row with the grantee's user id (granteeName is not populated yet).
+const CLINICIAN_USER_ID = "44e4531e-4149-513f-95d5-343a942af00b";
 const STAFF_EMAIL = "staff000@example.com";
 const PATIENT_EMAIL = "demo.patient.en@example.com";
 const CLINICIAN_EMAIL = "clinician0@example.com";
@@ -69,9 +72,18 @@ test("full demo spine against the live stack: file, grant, read, audit, revoke, 
     await patientPage.getByRole("button", { name: "Grant access" }).click();
     await expect(patientPage.getByText("Access granted")).toBeVisible();
 
-    // 3. Clinician reads the patient's record
+    // 3. Clinician finds the patient through the consented-patients list
+    //    (plan 004) instead of pasting the id, and reads the record.
     await login(clinicianPage, CLINICIAN_EMAIL);
-    await clinicianPage.goto(`/en/patients/${PATIENT_ID}/records`);
+    await clinicianPage.goto("/en/clinician");
+    await clinicianPage.waitForLoadState("networkidle");
+    await expect(
+      clinicianPage.getByText("Patients who have given you access"),
+    ).toBeVisible();
+    // The row's accessible name carries the patient's identity — the id is
+    // part of it, so this finds the right link without hardcoding the name.
+    // .first() keeps reruns safe if a crashed earlier run left a grant.
+    await clinicianPage.getByRole("link", { name: PATIENT_ID }).first().click();
     await clinicianPage.waitForLoadState("networkidle");
     await expect(clinicianPage.getByRole("heading", { name: "Patient record" })).toBeVisible();
     await expect(clinicianPage.getByText(displayName)).toBeVisible();
@@ -81,12 +93,21 @@ test("full demo spine against the live stack: file, grant, read, audit, revoke, 
     await patientPage.waitForLoadState("networkidle");
     await expect(patientPage.locator("table tbody tr").first()).toBeVisible();
 
-    // 5. Patient revokes consent
+    // 5. Patient revokes the clinician's consent. Rows are titled with the
+    //    grantee's user id; revoke every ACTIVE grant to this clinician —
+    //    CI sees exactly one, but a long-lived demo volume can carry stale
+    //    grants from earlier rehearsals, and any survivor defeats step 6.
     await patientPage.goto("/en/consent");
     await patientPage.waitForLoadState("networkidle");
-    await patientPage.getByRole("button", { name: "Revoke" }).first().click();
-    await patientPage.getByRole("button", { name: "Confirm revoke" }).click();
-    await expect(patientPage.getByText("Access revoked.")).toBeVisible();
+    for (let i = 0; i < 3; i++) {
+      const row = patientPage
+        .locator("li", { hasText: CLINICIAN_USER_ID })
+        .filter({ has: patientPage.getByRole("button", { name: "Revoke" }) });
+      if ((await row.count()) === 0) break;
+      await row.first().getByRole("button", { name: "Revoke" }).click();
+      await row.first().getByRole("button", { name: "Confirm revoke" }).click();
+      await expect(patientPage.getByText("Access revoked.")).toBeVisible();
+    }
 
     // 6. Clinician is now locked out
     await clinicianPage.reload();
