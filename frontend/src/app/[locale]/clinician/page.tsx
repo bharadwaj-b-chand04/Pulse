@@ -9,9 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { api, ApiError } from "@/lib/api";
 import type { Me } from "@/lib/auth";
+import type { ConsentedPatient } from "@/lib/consent";
+import { formatDate } from "@/lib/format";
+import type { Page } from "@/lib/records";
 
 // Clinician / Provider-staff landing page (login previously sent every
 // non-Administrator role to /profile, which is Patient-only and 403s —
@@ -24,12 +27,21 @@ type GateState =
   | { status: "loading" }
   | { status: "denied" }
   | { status: "error" }
-  | { status: "ready" };
+  | { status: "ready"; role: "CLINICIAN" | "PROVIDER_STAFF" };
+
+// A Clinician's list of Patients who granted them access — never cached
+// (clinical-safety.md: "never cache a permission decision"), so this is a
+// plain fetch on mount, not a query cache with staleTime.
+type PatientsState =
+  | { status: "loading" }
+  | { status: "error" }
+  | { status: "ready"; items: ConsentedPatient[] };
 
 export default function ClinicianHomePage() {
   const t = useTranslations("clinicianHome");
   const router = useRouter();
   const [gate, setGate] = useState<GateState>({ status: "loading" });
+  const [patients, setPatients] = useState<PatientsState>({ status: "loading" });
   const [patientId, setPatientId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const fieldId = useId();
@@ -42,11 +54,11 @@ export default function ClinicianHomePage() {
       .get<Me>("/auth/me")
       .then((me) => {
         if (!active) return;
-        setGate(
-          me.role === "CLINICIAN" || me.role === "PROVIDER_STAFF"
-            ? { status: "ready" }
-            : { status: "denied" },
-        );
+        if (me.role === "CLINICIAN" || me.role === "PROVIDER_STAFF") {
+          setGate({ status: "ready", role: me.role });
+        } else {
+          setGate({ status: "denied" });
+        }
       })
       .catch((err) => {
         if (!active) return;
@@ -61,6 +73,22 @@ export default function ClinicianHomePage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (gate.status !== "ready" || gate.role !== "CLINICIAN") return;
+    let active = true;
+    api
+      .get<Page<ConsentedPatient>>("/consents/granted-to-me")
+      .then((page) => {
+        if (active) setPatients({ status: "ready", items: page.items });
+      })
+      .catch(() => {
+        if (active) setPatients({ status: "error" });
+      });
+    return () => {
+      active = false;
+    };
+  }, [gate]);
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -102,6 +130,48 @@ export default function ClinicianHomePage() {
         <h1 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl">{t("title")}</h1>
         <p className="text-pretty text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
+
+      {gate.role === "CLINICIAN" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("patients.title")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {patients.status === "loading" && (
+              <p className="text-sm text-muted-foreground">{t("loading")}</p>
+            )}
+            {patients.status === "error" && (
+              <Alert variant="destructive">
+                <TriangleAlertIcon />
+                <AlertDescription>{t("patients.error")}</AlertDescription>
+              </Alert>
+            )}
+            {patients.status === "ready" && patients.items.length === 0 && (
+              <p className="text-sm text-muted-foreground">{t("patients.empty")}</p>
+            )}
+            {patients.status === "ready" && patients.items.length > 0 && (
+              <ul className="space-y-2">
+                {patients.items.map((patient) => (
+                  <li key={patient.patientId}>
+                    <Link
+                      href={`/patients/${patient.patientId}/records`}
+                      className="block rounded-md border p-3 hover:bg-accent"
+                    >
+                      <span className="font-medium">{patient.fullName}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {patient.patientId}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {t("patients.until", { date: formatDate(patient.expiresAt) })}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
