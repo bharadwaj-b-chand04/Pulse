@@ -15,7 +15,7 @@ import type { Me } from "@/lib/auth";
 
 // Clinician / Provider-staff landing page (login previously sent every
 // non-Administrator role to /profile, which is Patient-only and 403s —
-// this is the gap that fix closes). Per docs/demo-script.md, a Clinician
+// this is the gap that fix closes). Per docs/demo.md, a Clinician
 // has no dashboard: they navigate directly to a specific
 // /patients/{patientId}/records URL, because a Consent grant is scoped to
 // one Patient at a time. This screen is only that navigation step made

@@ -69,7 +69,7 @@ export default function LoginPage() {
       // Every non-Patient role has no Patient profile to land on
       // (/profile calls /patients/me, which only exists for Patients).
       // Administrators go to the admin dashboard (ADR-0007); Clinicians and
-      // Provider staff go to the patient-lookup screen (docs/demo-script.md
+      // Provider staff go to the patient-lookup screen (docs/demo.md
       // — they navigate to one Consent-scoped Patient at a time). Only
       // Patient keeps landing on /profile.
       const me = await api.get<Me>("/auth/me");
