@@ -28,3 +28,18 @@ import "@fontsource/noto-sans-tamil/700.css";
 import "@fontsource/noto-sans-malayalam/400.css";
 import "@fontsource/noto-sans-malayalam/500.css";
 import "@fontsource/noto-sans-malayalam/700.css";
+
+// Noto Serif is reserved for page-level headings. Keep the same script
+// coverage as the UI face so headings do not fall back inconsistently in
+// Hindi, Tamil, or Malayalam.
+import "@fontsource/noto-serif/400.css";
+import "@fontsource/noto-serif/600.css";
+
+import "@fontsource/noto-serif-devanagari/400.css";
+import "@fontsource/noto-serif-devanagari/600.css";
+
+import "@fontsource/noto-serif-tamil/400.css";
+import "@fontsource/noto-serif-tamil/600.css";
+
+import "@fontsource/noto-serif-malayalam/400.css";
+import "@fontsource/noto-serif-malayalam/600.css";

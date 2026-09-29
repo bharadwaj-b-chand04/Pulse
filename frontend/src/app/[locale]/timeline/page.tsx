@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { Timeline } from "@/components/ui/timeline";
 import { ClinicalText } from "@/components/ClinicalText";
 import {
   ChevronRightIcon,
@@ -271,18 +272,18 @@ export default function TimelinePage() {
 
       {state.status === "ready" && state.items.length > 0 && (
         <div className="space-y-6">
-          {groupByDate(state.items).map((group) => (
-            <div key={group.dateKey} className="space-y-2">
-              <h2 className="text-sm font-medium tabular-nums text-muted-foreground">
-                {formatDate(group.date)}
-              </h2>
-              <ul className="space-y-2">
-                {group.rows.map((entry) => (
-                  <EntryRow key={entry.id} entry={entry} />
-                ))}
-              </ul>
-            </div>
-          ))}
+          <Timeline
+            data={groupByDate(state.items).map((group) => ({
+              title: formatDate(group.date),
+              content: (
+                <ul className="space-y-2">
+                  {group.rows.map((entry) => (
+                    <EntryRow key={entry.id} entry={entry} />
+                  ))}
+                </ul>
+              ),
+            }))}
+          />
 
           {state.loadMoreError && (
             <Alert variant="destructive">

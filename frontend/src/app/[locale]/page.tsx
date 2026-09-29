@@ -3,6 +3,7 @@ import { ActivityIcon, EyeIcon, NotebookPenIcon, ShieldCheckIcon } from "lucide-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PointerHighlight } from "@/components/ui/pointer-highlight";
 import { Link } from "@/i18n/navigation";
 
 // Home = the product's spine in three cards: the lifelong history, consent
@@ -20,13 +21,17 @@ export default function HomePage() {
   return (
     <div className="animate-in fade-in-0 slide-in-from-bottom-1 space-y-12 duration-300 motion-reduce:animate-none">
       <section className="mx-auto max-w-2xl space-y-5 pt-6 text-center sm:pt-12">
-        <Badge variant="outline" className="gap-1.5 text-primary">
-          <ActivityIcon className="size-3.5" />
-          {t("badge")}
-        </Badge>
-        <h1 className="text-balance text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        <h1 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
           {t("title")}
         </h1>
+        <div className="-mt-2 flex justify-center">
+          <PointerHighlight>
+            <Badge variant="outline" className="gap-1.5 text-primary">
+              <ActivityIcon className="size-3.5" />
+              {t("badge")}
+            </Badge>
+          </PointerHighlight>
+        </div>
         <p className="text-pretty text-base text-muted-foreground sm:text-lg">
           {t("description")}
         </p>
