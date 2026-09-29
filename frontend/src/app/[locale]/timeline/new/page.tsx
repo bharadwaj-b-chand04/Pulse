@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { use, useId, useState } from "react";
 import type { FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -54,15 +54,21 @@ const FIELD_ORDER = [
 // Provider Staff files an Entry for any Patient (clinical-safety.md:
 // `patient.user_id` is nullable and load-bearing — a Patient need not have
 // registered). There is no patient search screen yet, so the id is a plain
-// field rather than an unbuilt picker (ponytail: no speculative UI).
-export default function NewEntryPage() {
+// field rather than an unbuilt picker (ponytail: no speculative UI). The
+// patient record view links here with `?patientId=` so it arrives prefilled.
+export default function NewEntryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ patientId?: string }>;
+}) {
+  const { patientId: initialPatientId } = use(searchParams);
   const t = useTranslations("entry");
   const tTimeline = useTranslations("timeline");
   const errorMessage = useApiErrorMessage();
   const fieldErrors = useFieldErrors();
   const formId = useId();
 
-  const [patientId, setPatientId] = useState("");
+  const [patientId, setPatientId] = useState(initialPatientId ?? "");
   const [entryType, setEntryType] = useState<EntryType | "">("");
   const [occurredAt, setOccurredAt] = useState("");
   const [isCritical, setIsCritical] = useState(false);
@@ -162,7 +168,7 @@ export default function NewEntryPage() {
           <AlertDescription>{formError ?? t("new.success.body")}</AlertDescription>
         </Alert>
         <Button asChild>
-          <Link href={`/timeline/${createdId}`}>{t("new.success.viewEntry")}</Link>
+          <Link href={`/patients/${patientId}/records/${createdId}`}>{t("new.success.viewEntry")}</Link>
         </Button>
       </section>
     );

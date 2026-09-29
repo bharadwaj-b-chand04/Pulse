@@ -42,6 +42,9 @@ import { ENTRY_TYPES, type EntryType } from "@/lib/records";
 // every entry type unchecked grants all of them (`entryTypes: null` on the
 // wire), matching the backend's "no filter" meaning. The grantee is entered
 // by email and resolved to a user id via `/clinicians/lookup` on submit.
+// Granting requires step-up (backend.md: `requires_step_up()`), so the form
+// always asks for the password and calls `/auth/step-up` before the grant.
+// Revoking deliberately does not.
 export default function GrantConsentPage() {
   const t = useTranslations("consent");
   const tTimeline = useTranslations("timeline");
@@ -57,6 +60,7 @@ export default function GrantConsentPage() {
   const [purpose, setPurpose] = useState<ConsentPurpose | "">("");
   const [purposeText, setPurposeText] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
+  const [password, setPassword] = useState("");
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -88,6 +92,11 @@ export default function GrantConsentPage() {
       return;
     }
 
+    if (!password) {
+      setFormError(t("new.validation.passwordRequired"));
+      return;
+    }
+
     setSubmitting(true);
     let granteeUserId: string;
     try {
@@ -97,6 +106,18 @@ export default function GrantConsentPage() {
       setFormError(
         err instanceof ApiError && err.status === 404
           ? t("new.validation.clinicianNotFound")
+          : errorMessage(err),
+      );
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      await api.post("/auth/step-up", { password });
+    } catch (err) {
+      setFormError(
+        err instanceof ApiError && err.code === "INVALID_CREDENTIALS"
+          ? t("new.validation.wrongPassword")
           : errorMessage(err),
       );
       setSubmitting(false);
@@ -145,6 +166,7 @@ export default function GrantConsentPage() {
   const fromDateId = `${formId}-from-date`;
   const toDateId = `${formId}-to-date`;
   const expiresAtId = `${formId}-expires-at`;
+  const passwordId = `${formId}-password`;
 
   return (
     <section className="animate-in fade-in-0 slide-in-from-bottom-1 motion-reduce:animate-none mx-auto max-w-lg space-y-8 duration-300">
@@ -291,6 +313,17 @@ export default function GrantConsentPage() {
             onChange={(e) => setExpiresAt(e.target.value)}
           />
           {errors.expiresAt && <FieldError id={`${expiresAtId}-error`}>{errors.expiresAt}</FieldError>}
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor={passwordId}>{f.password}</FieldLabel>
+          <Input
+            id={passwordId}
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </Field>
 
         <Button

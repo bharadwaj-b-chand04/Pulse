@@ -7,6 +7,8 @@ import { expect, test } from "@playwright/test";
 const PATIENT_ID = "22222222-2222-2222-2222-222222222222";
 
 async function fillCommonFields(page: import("@playwright/test").Page) {
+  // Filling before hydration lets React reset the controlled inputs.
+  await page.waitForLoadState("networkidle");
   await page.getByLabel("Patient ID").fill(PATIENT_ID);
   await page.getByRole("combobox", { name: "Entry type" }).click();
   await page.getByRole("option", { name: "Diagnosis" }).click();
@@ -76,4 +78,24 @@ test("a stubbed 413 on document upload shows the size-specific message", async (
   await expect(
     page.getByText("This file is too large — compress or split it and try again."),
   ).toBeVisible();
+});
+
+test("Provider Staff files from the patient record with the id prefilled", async ({ page }) => {
+  await page.route("**/api/v1/**", async (route) => {
+    const url = new URL(route.request().url());
+    const json = (status: number, body: unknown) =>
+      route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+    if (url.pathname.endsWith("/auth/me")) {
+      return json(200, { userId: "u-staff", email: "staff@example.com", role: "PROVIDER_STAFF" });
+    }
+    if (url.pathname === `/api/v1/patients/${PATIENT_ID}/entries`) {
+      return json(200, { items: [], nextCursor: null });
+    }
+    return json(404, { error: { code: "NOT_FOUND", message: "not found" } });
+  });
+
+  await page.goto(`/en/patients/${PATIENT_ID}/records`);
+  await page.getByRole("link", { name: "File new entry" }).click();
+  await expect(page).toHaveURL(new RegExp(`/en/timeline/new\\?patientId=${PATIENT_ID}`));
+  await expect(page.getByLabel("Patient ID")).toHaveValue(PATIENT_ID);
 });

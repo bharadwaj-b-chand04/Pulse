@@ -63,11 +63,14 @@
       "toDate": "To date (optional)",
       "purpose": "Purpose",
       "purposeText": "Describe the purpose",
-      "expiresAt": "Access expires"
+      "expiresAt": "Access expires",
+      "password": "Confirm with your password"
     },
     "validation": {
       "requiredFields": "Enter a grantee, purpose and expiry.",
-      "clinicianNotFound": "No clinician is registered with that email."
+      "clinicianNotFound": "No clinician is registered with that email.",
+      "passwordRequired": "Enter your password to grant access.",
+      "wrongPassword": "That password is not correct."
     },
     "submit": "Grant access",
     "submitting": "Granting…",
