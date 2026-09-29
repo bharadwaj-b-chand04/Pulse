@@ -113,6 +113,34 @@ async def list_consents_for_patient(
     return rows, next_cursor
 
 
+async def list_live_permissions_for_grantee(
+    session: AsyncSession, grantee_user_id: UUID, *, now: datetime, cursor: str | None, limit: int
+) -> tuple[list[AccessPermission], str | None]:
+    limit = max(1, min(limit, _MAX_LIMIT))
+    stmt = select(AccessPermission).where(
+        AccessPermission.grantee_user_id == grantee_user_id,
+        AccessPermission.expires_at > now,
+    )
+    if cursor is not None:
+        c_at, c_id = _unpack_cursor(cursor)
+        stmt = stmt.where(
+            or_(
+                AccessPermission.created_at < c_at,
+                (AccessPermission.created_at == c_at) & (AccessPermission.id < c_id),
+            )
+        )
+    stmt = stmt.order_by(AccessPermission.created_at.desc(), AccessPermission.id.desc()).limit(
+        limit + 1
+    )
+    rows = list((await session.execute(stmt)).scalars().all())
+    next_cursor: str | None = None
+    if len(rows) > limit:
+        rows = rows[:limit]
+        tail = rows[-1]
+        next_cursor = _pack_cursor(tail.created_at, tail.id)
+    return rows, next_cursor
+
+
 async def create_break_glass(
     session: AsyncSession,
     *,

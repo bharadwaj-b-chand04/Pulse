@@ -48,6 +48,9 @@ class Permission(StrEnum):
     # only (#44) — a Provider Staff member already has Provider-scoped
     # access, and no other role may bypass Consent this way.
     BREAK_GLASS_REQUEST = "BREAK_GLASS_REQUEST"
+    # A Clinician listing Patients whose live Consent names them.
+    # Identity only.
+    CONSENT_READ_GRANTED = "CONSENT_READ_GRANTED"
     # A Patient's own five data-quality flags, or an Administrator sweeping
     # the queue (P4.3, #54). Identity-derived, informational only — never a
     # clinical read, so this is the one analytics permission ADMINISTRATOR
@@ -83,6 +86,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.RECORDS_READ,
             Permission.PROVIDER_READ,
             Permission.BREAK_GLASS_REQUEST,
+            Permission.CONSENT_READ_GRANTED,
         }
     ),
     Role.PROVIDER_STAFF: frozenset(
