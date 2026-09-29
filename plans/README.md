@@ -50,4 +50,4 @@ Quick-effort, hotspot-only pass over what a same-session Phase-0 scaffolding eff
 
 2026-09-28 run did not audit: backend beyond the touchpoints the plans cite, performance, dependencies, accessibility, or the admin and analytics screens in depth.
 
-Next command: `/improve execute plans/006-live-stack-demo-spine-e2e.md` (the pending fix and 005 are committed).
+Next command: `/improve execute plans/002-gate-entry-form-to-provider-staff.md`, then 003. Plans 004, 005 and 006 landed on main on 2026-09-29 (004 and 006 executed in parallel worktrees; the live spine also exercises 004's consented-patients list, per 006's maintenance note).

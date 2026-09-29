@@ -134,3 +134,9 @@ Context: #56 asks for the deployment call. The delivery plan assumed laptop Comp
 Options: laptop `docker compose up --build`; a hosted always-on instance.
 Chosen: laptop Compose, started with `docker compose up --build` or `uv run run.py`. Caddy serves everything on port 80, same origin (ADR-0012).
 Rejected: an always-on instance. Nothing in integration needed one, and it would put a publicly reachable EHR-shaped system online with seeded identity data, sessions and an audit log, for a demo that runs on one machine. ADR-0003's stateless-scaling argument against Redis sessions assumes the same single-host topology.
+
+## [2026-09-29] One live-stack e2e spec guards the demo spine; the mocked suite stays mocked
+Context: #56's acceptance criteria require the full demo spine green in CI, but every `e2e/` spec mocks `**/api/v1/**`, so CI could not catch frontend/backend contract drift — which is exactly how the consent step-up bug survived to a rehearsal.
+Options: convert the mocked specs to hit the real backend (needs the whole stack in every e2e run); add one live spec plus its own CI job against the real Compose stack; rely on manual rehearsal.
+Chosen: `frontend/e2e-live/demo-spine.live.spec.ts` via `playwright.live.config.ts` (`npm run test:e2e:live`), and an `e2e-live` CI job that runs `docker compose up --build -d --wait` and dumps compose logs on failure. The spec covers staff filing, grant with step-up, clinician discovery through the plan-004 consented-patients list, audit view, revoke, and immediate lockout, and is rerun-safe (unique display names, `.first()` discovery, revoke loop over all active grants to the target clinician).
+Rejected: converting the mocked suite — the mocks are the fast feedback loop and stay self-contained. Manual rehearsal only — it is how the step-up bug got through. The plans/README 2026-09-28 audit named this plan the first net to build, for that reason.

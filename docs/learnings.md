@@ -251,3 +251,15 @@ Appended as patterns land. Not written at the end.
 **Why here:** Phase 4 added data-dense screens (analytics, admin, duplicate review) that needed tables, charts, sheets and form fields the original kit did not have. shadcn components are copied into the repo, not imported from a package, so they are still "wrapped once, in the shared directory" (`frontend.md`) and can be edited.
 
 **Worth knowing:** shadcn's `destructive` colour is a generic error red, not a clinical-severity colour, and its `Badge` variant measured **3.97:1** in light mode, below WCAG AA's 4.5:1 for 12px text. Clinical flags (abnormal lab results, critical entries) use the `--critical` tokens (5.87:1 light, 8.42:1 dark). The patient-side abnormal marker drifted to `variant="destructive"` during the rebuild and was moved back in P4.5. Check contrast by computing ratios from resolved colours in the running app, not by eye.
+
+---
+
+## The mocked e2e suite cannot see frontend/backend contract drift (P4.5, plan 006)
+
+**What:** Every spec under `frontend/e2e/` stubs `**/api/v1/**` with `page.route`, so CI's green suite proves only that the frontend agrees with *its own mocks*. The real contract is checked by one spec under `frontend/e2e-live/` (`playwright.live.config.ts`, `npm run test:e2e:live`), which drives the actual Compose stack through Caddy with nothing mocked, and by the `e2e-live` CI job that brings the stack up itself and dumps `docker compose logs` on failure.
+
+**Why here:** This exact blind spot hid a demo-breaking bug: the backend required password re-entry (`requires_step_up()`) before `POST /consents`, the grant form never sent one, every live grant failed with 403 — and CI stayed green because the mock accepted the grant. A mocked suite is a self-consistency check, not an integration test.
+
+**Replaces:** "The demo works" as a rehearsal hope. The graded spine (staff files, patient grants with step-up, clinician reads via the plan-004 consented-patients list, audit view, revoke, immediate lockout) is now a CI fact.
+
+**Worth knowing:** The live spec is rerun-safe by construction: unique display names per run, a `.first()` on discovery links, and the revoke loop clears *all* active grants to the target clinician — a long-lived demo volume accumulates stale grants from rehearsals, and any survivor defeats the lockout assertion. The `e2e/` mocked suite stays the fast feedback loop; the live spec costs a stack build and runs only in its own CI job.
