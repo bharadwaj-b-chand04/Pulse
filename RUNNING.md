@@ -3,14 +3,14 @@
 A from-clone, exact-values walkthrough: how to bring the stack up, how to
 verify it, and a concrete order of screens/inputs to exercise against the
 committed demo data. For the narrated live-demo version (with the "why"
-after each step) see [`docs/demo-script.md`](docs/demo-script.md) — this
+after each step) see [`docs/demo.md`](docs/demo.md) — this
 document is the flatter reference: every field, every button, every seeded
 value, in one place.
 
 Checked against the tree at commit `f3c15f2` (2026-09-15). The seeded
 Administrator (`admin0@example.com`) landed in that commit — this doc does
 **not** carry the old "promote a user by hand" workaround that
-`docs/demo-script.md` still documents as a known gap; that gap is closed.
+`docs/demo.md` still documents as a known gap; that gap is closed.
 
 ## 1. Prerequisites
 
@@ -57,7 +57,7 @@ curl -s http://localhost/api/v1/patients/me -o /dev/null -w '%{http_code}\n'   #
 
 If `docker compose logs backend` shows an SMTP connection error, that's
 independent of signup succeeding — registration and email delivery are
-decoupled (see fallback notes in `docs/demo-script.md`).
+decoupled (see fallback notes in `docs/demo.md`).
 
 ## 4. Seeded accounts — exact values
 
@@ -88,7 +88,7 @@ hash — don't bother trying them. Full generation/regeneration details:
 
 ## 5. Exact walkthrough, in order
 
-This mirrors `docs/demo-script.md`'s spine but written as literal field
+This mirrors `docs/demo.md`'s spine but written as literal field
 values, so you can follow it without also reading the narration. Locale
 prefix is `/en` throughout — swap for `/hi`, `/ta`, `/ml` to check other
 locales (see §7).
@@ -98,15 +98,11 @@ locales (see §7).
 1. `http://localhost/en/register`
    - **Email**: any address, e.g. `test.patient@example.com`
    - **Password**: 12+ characters — the form rejects shorter (`MIN_PASSWORD = 12`), e.g. `TestPassword123!`
-   - **Role**: one of Patient / Clinician / Provider staff / Administrator — pick **Patient**
-   - Submit → redirected to `/en/verify-pending?email=...`
+   - Submit → redirected to `/en/verify-pending?email=...` (sign-up creates
+     a Patient — Clinicians, Provider Staff and Administrators come from the
+     seed data, so there is no role field)
 2. Open `http://localhost:8025`, find the verification email, click the link.
 3. Log in at `/en/login` with the same email/password.
-
-> Registering as **Administrator** is technically possible through this
-> same form (the role dropdown has no restriction) — worth knowing if
-> you're testing access control, since it means admin isn't
-> invite-only in the current build.
 
 ### 5.2 Log in with a seeded account
 
@@ -116,10 +112,15 @@ already has seed history, unlike a brand-new signup.
 
 ### 5.3 File a Medical Entry — `/en/timeline/new`
 
+Only **Provider staff** can file (`RECORDS_WRITE`); a Patient gets 403.
+Log in as `staff000@example.com`, open **Patients**, paste the Patient ID,
+"Open record", then **File new entry** — the form arrives with the Patient
+ID prefilled.
+
 Field set changes based on **Entry type**; here's what to fill for each:
 
 **Common to every entry type:**
-- **Patient ID**: `0c96112a-1653-5403-999c-30ec1ef6dda8` (demo.patient.en's patient row — or your own if freshly registered and you know your ID from `seed`/DB)
+- **Patient ID**: prefilled from the record view (`0c96112a-1653-5403-999c-30ec1ef6dda8` is demo.patient.en's patient row)
 - **Entry type**: one of Diagnosis / Prescription / Lab report / Procedure / Clinical note
 - **Occurred at**: any past datetime, e.g. `2026-01-15T09:30`
 - **Critical** checkbox: leave unchecked unless you specifically want the "Critical" label to show on the timeline
@@ -160,6 +161,7 @@ label *and* an icon (never colour alone, per `frontend.md`).
 - **From / To date**: optional — leave blank for no date window
 - **Purpose**: `Treatment` (or `Second opinion` / `Other` — if Other, a free-text **Purpose (other)** field appears)
 - **Expires at**: any future datetime, e.g. one week out
+- **Confirm with your password**: `Pulse@demo1` — granting requires step-up (password re-entry); revoking does not
 - Submit → "Access granted"
 
 ### 5.6 Clinician reads the record
@@ -273,6 +275,4 @@ docker compose down -v         # stop AND wipe the volume — next `up` reseeds 
 - No patient search/picker UI — every screen that needs a Patient ID
   (timeline/new, consent/new) takes it as a plain text field. Use the IDs
   in §4.
-- Registration's role dropdown includes Administrator with no gating —
-  see the callout in §5.1.
 - Tamil/Malayalam: machine-translated, unreviewed by a native speaker.

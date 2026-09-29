@@ -8,13 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Link, useRouter } from "@/i18n/navigation";
 import { api } from "@/lib/api";
 import { useApiErrorMessage, useFieldErrors } from "@/lib/errors";
 
-const ROLES = ["PATIENT", "CLINICIAN", "PROVIDER_STAFF", "ADMINISTRATOR"] as const;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 12;
 
@@ -28,14 +26,11 @@ export default function RegisterPage() {
   const emailErrorId = useId();
   const passwordId = useId();
   const passwordErrorId = useId();
-  const roleId = useId();
-  const roleErrorId = useId();
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<string>("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -47,7 +42,6 @@ export default function RegisterPage() {
     if (!password) next.password = t("validation.passwordRequired");
     else if (password.length < MIN_PASSWORD)
       next.password = t("validation.passwordTooShort");
-    if (!role) next.role = t("validation.roleRequired");
     return next;
   }
 
@@ -63,7 +57,9 @@ export default function RegisterPage() {
 
     setSubmitting(true);
     try {
-      await api.post("/auth/register", { email, password, role });
+      // Only Patients self-register; other roles are seeded (backend
+      // rejects the rest with 403 unless PULSE_OPEN_ROLE_REGISTRATION is set).
+      await api.post("/auth/register", { email, password, role: "PATIENT" });
       router.push(`/verify-pending?email=${encodeURIComponent(email)}`);
     } catch (err) {
       const fields = fieldErrors(err);
@@ -122,28 +118,6 @@ export default function RegisterPage() {
                 aria-describedby={errors.password ? passwordErrorId : undefined}
               />
               {errors.password && <FieldError id={passwordErrorId}>{errors.password}</FieldError>}
-            </Field>
-
-            <Field data-invalid={!!errors.role || undefined}>
-              <FieldLabel htmlFor={roleId}>{t("fields.role")}</FieldLabel>
-              <Select value={role ?? ""} onValueChange={setRole}>
-                <SelectTrigger
-                  id={roleId}
-                  className="w-full"
-                  aria-invalid={!!errors.role}
-                  aria-describedby={errors.role ? roleErrorId : undefined}
-                >
-                  <SelectValue placeholder={t("fields.role")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLES.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {t(`roles.${value}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.role && <FieldError id={roleErrorId}>{errors.role}</FieldError>}
             </Field>
 
             <Button type="submit" disabled={submitting} aria-busy={submitting} className="h-11 w-full">

@@ -172,9 +172,17 @@ export default function ClinicianPatientRecordsPage({
 
   return (
     <section className="space-y-8 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-300">
-      <div className="space-y-1">
-        <h1 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl">{t("title")}</h1>
-        <p className="text-pretty text-sm text-muted-foreground">{t("subtitle")}</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl">{t("title")}</h1>
+          <p className="text-pretty text-sm text-muted-foreground">{t("subtitle")}</p>
+        </div>
+        {/* Filing is RECORDS_WRITE, which only Provider Staff hold. */}
+        {role === "PROVIDER_STAFF" && (
+          <Button asChild className="shrink-0">
+            <Link href={`/timeline/new?patientId=${patientId}`}>{tTimeline("fileNewEntry")}</Link>
+          </Button>
+        )}
       </div>
 
       <div className="max-w-xs space-y-1.5">

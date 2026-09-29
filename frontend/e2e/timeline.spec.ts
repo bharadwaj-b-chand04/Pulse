@@ -88,6 +88,9 @@ test("timeline renders the stubbed entries in date order", async ({ page }) => {
 
   // Critical flag has a text label, never colour alone.
   await expect(rows.nth(0)).toContainText("Critical");
+
+  // Only Provider Staff hold RECORDS_WRITE; a Patient gets no filing link.
+  await expect(page.getByRole("link", { name: "File new entry" })).toHaveCount(0);
 });
 
 test("the entryType filter narrows the list", async ({ page }) => {

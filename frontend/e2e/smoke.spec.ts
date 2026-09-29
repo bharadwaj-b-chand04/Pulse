@@ -39,11 +39,11 @@ test.beforeEach(async ({ page }) => {
 
 test("register form shows validation errors on bad input", async ({ page }) => {
   await page.goto("/en/register");
-  // Submit empty: three field errors appear from client-side validation.
+  // Submit empty: two field errors appear from client-side validation.
+  // (Sign-up creates a Patient, so there is no role field to leave empty.)
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page.getByText("Enter your email address.")).toBeVisible();
   await expect(page.getByText("Enter a password.")).toBeVisible();
-  await expect(page.getByText("Choose a role.")).toBeVisible();
 
   // A too-short password is rejected without a network call.
   await page.getByLabel("Email address").fill("not-an-email");

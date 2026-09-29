@@ -27,6 +27,10 @@ from testcontainers.redis import RedisContainer
 
 LoginFactory = Callable[..., Awaitable[Response]]
 
+# Test-only: lets `register_and_login` create Clinicians, Provider Staff and
+# Administrators through the API (production sign-up is Patient-only).
+os.environ.setdefault("PULSE_OPEN_ROLE_REGISTRATION", "1")
+
 _BACKEND_DIR = Path(__file__).resolve().parents[1]
 # Child-first: the app role has DML but not TRUNCATE on these (migration 0002),
 # so teardown is ordered DELETEs, not a single TRUNCATE ... CASCADE.

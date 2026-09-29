@@ -209,9 +209,6 @@ export default function TimelinePage() {
           </h1>
           <p className="text-pretty text-muted-foreground">{t("subtitle")}</p>
         </div>
-        <Button asChild className="shrink-0">
-          <Link href="/timeline/new">{t("fileNewEntry")}</Link>
-        </Button>
       </div>
 
       <div className="max-w-xs space-y-1.5">

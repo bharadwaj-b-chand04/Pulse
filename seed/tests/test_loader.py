@@ -123,7 +123,7 @@ async def test_at_least_one_unclaimed_patient(_migrated_db: str) -> None:
 async def test_seeded_administrator_exists_with_demo_login(_migrated_db: str) -> None:
     """One ADMINISTRATOR row, demo-login enabled, with no Patient — the
     demo used to promote a Provider-staff row by hand because the dataset
-    shipped none (demo-script.md's 'known gap'). Admin screens read
+    shipped none (demo.md's 'known gap'). Admin screens read
     identity data and counts only (ADR-0007), so the seeded admin carries
     no patient row by construction."""
     from sqlalchemy import text
