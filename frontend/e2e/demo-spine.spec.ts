@@ -69,6 +69,9 @@ test("full demo spine: signup, upload, grant, clinician read, audit, revoke, loc
   // flag stands in for "which actor is making the request right now" and is
   // flipped by the test immediately before each clinician-perspective step.
   let asClinician = false;
+  // Mirrors the backend's `requires_step_up()` on POST /consents: a grant
+  // without a recent password re-entry is refused.
+  let steppedUp = false;
 
   await page.route("**/api/v1/**", async (route) => {
     const req = route.request();
@@ -106,6 +109,17 @@ test("full demo spine: signup, upload, grant, clinician read, audit, revoke, loc
       return url.searchParams.get("email") === "fathima@example.com"
         ? json(200, { userId: CLINICIAN_USER_ID, email: "fathima@example.com" })
         : json(404, { error: { code: "NOT_FOUND", message: "not found" } });
+    }
+    if (url.pathname === "/api/v1/auth/step-up" && req.method() === "POST") {
+      const { password } = req.postDataJSON() as { password: string };
+      if (password !== "correct horse battery staple") {
+        return json(401, { error: { code: "INVALID_CREDENTIALS", message: "bad password" } });
+      }
+      steppedUp = true;
+      return json(200, {});
+    }
+    if (url.pathname === "/api/v1/consents" && req.method() === "POST" && !steppedUp) {
+      return json(403, { error: { code: "STEP_UP_REQUIRED", message: "step up" } });
     }
     if (url.pathname === "/api/v1/consents" && req.method() === "POST") {
       const body = req.postDataJSON() as { granteeUserId: string };
@@ -154,8 +168,7 @@ test("full demo spine: signup, upload, grant, clinician read, audit, revoke, loc
   await page.waitForLoadState("networkidle");
   await page.getByLabel("Email address").fill("priya@example.com");
   await page.getByLabel("Password").fill("correct horse battery staple");
-  await page.getByRole("combobox", { name: "I am registering as" }).click();
-  await page.getByRole("option", { name: "Patient" }).click();
+  // Sign-up creates a Patient; there is no role field.
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/en\/verify-pending/);
   await expect(
@@ -164,6 +177,7 @@ test("full demo spine: signup, upload, grant, clinician read, audit, revoke, loc
 
   // 2. Upload (file a Diagnosis entry as the newly signed-up patient)
   await page.goto("/en/timeline/new");
+  await page.waitForLoadState("networkidle");
   await page.getByLabel("Patient ID").fill(PATIENT_ID);
   await page.getByRole("combobox", { name: "Entry type" }).click();
   await page.getByRole("option", { name: "Diagnosis" }).click();
@@ -185,10 +199,15 @@ test("full demo spine: signup, upload, grant, clinician read, audit, revoke, loc
   await page.getByRole("combobox", { name: "Purpose" }).click();
   await page.getByRole("option", { name: "Treatment" }).click();
   await page.locator('input[type="datetime-local"]').fill("2027-01-01T00:00");
+  await page.getByLabel("Confirm with your password").fill("wrong password");
   await page.getByRole("button", { name: "Grant access" }).click();
   await expect(page.getByText("No clinician is registered with that email.")).toBeVisible();
 
   await page.getByLabel("Clinician email").fill("fathima@example.com");
+  await page.getByRole("button", { name: "Grant access" }).click();
+  await expect(page.getByText("That password is not correct.")).toBeVisible();
+
+  await page.getByLabel("Confirm with your password").fill("correct horse battery staple");
   await page.getByRole("button", { name: "Grant access" }).click();
   await expect(page.getByText("Access granted")).toBeVisible();
   await expect(page.getByRole("link", { name: "Back to who has access" })).toBeVisible();

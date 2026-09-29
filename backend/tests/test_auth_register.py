@@ -6,6 +6,7 @@ happily when the uniqueness check was never applied.
 
 from collections.abc import AsyncIterator
 
+import pytest
 import pytest_asyncio
 from helpers import identity_session, wipe_identity
 from httpx import AsyncClient
@@ -86,3 +87,30 @@ async def test_register_clinician_creates_no_patient_row(
             await session.execute(select(Patient).where(Patient.user_id == user_id))
         ).scalar_one_or_none()
         assert linked is None
+
+
+@pytest.mark.parametrize("role", ["ADMINISTRATOR", "CLINICIAN", "PROVIDER_STAFF"])
+async def test_register_rejects_privileged_roles(
+    client: AsyncClient, app_database_url: str, monkeypatch: pytest.MonkeyPatch, role: str
+) -> None:
+    # Only Patients self-register; other roles are seeded.
+    monkeypatch.delenv("PULSE_OPEN_ROLE_REGISTRATION", raising=False)
+    email = f"self.{role.lower()}@example.com"
+    resp = await client.post(
+        "/api/v1/auth/register", json={"email": email, "password": _PW, "role": role}
+    )
+    assert resp.status_code == 403
+    assert resp.json()["error"]["code"] == "FORBIDDEN"
+    async with identity_session(app_database_url) as session:
+        assert (await session.execute(select(User).where(User.email == email))).first() is None
+
+
+async def test_register_patient_allowed_without_open_registration(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("PULSE_OPEN_ROLE_REGISTRATION", raising=False)
+    resp = await client.post(
+        "/api/v1/auth/register",
+        json={"email": "self.patient@example.com", "password": _PW, "role": "PATIENT"},
+    )
+    assert resp.status_code == 201

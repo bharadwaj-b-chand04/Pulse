@@ -6,6 +6,7 @@ unverified user signs in and is gated at the permission layer instead,
 so the frontend can render a "resend verification" screen.
 """
 
+import os
 from uuid import UUID
 
 from redis.asyncio import Redis
@@ -40,6 +41,15 @@ async def register(
     locale: str,
 ) -> UUID:
     """Create the identity, start email verification. Raises on duplicate email."""
+    # Only Patients self-register; Clinicians, Provider Staff and
+    # Administrators are seeded. The env var exists solely so the test suite
+    # can create them through this endpoint — never set it in compose.yaml.
+    if Role(role) != Role.PATIENT and os.environ.get("PULSE_OPEN_ROLE_REGISTRATION") != "1":
+        raise PulseError(
+            ErrorCode.FORBIDDEN,
+            "Only patients can register themselves.",
+            http_status=403,
+        )
     email = _normalise_email(email)
     _duplicate_email = PulseError(
         ErrorCode.EMAIL_ALREADY_REGISTERED,
