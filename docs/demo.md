@@ -1,149 +1,233 @@
-# Demo script
+# Demo
 
-A step-by-step script for the live demo, covering the full spine from
-issue #56 (signup → upload → timeline → grant → clinician read → patient
-audit view → revoke → clinician locked out) plus a pass through Phase 4's
-analytics, admin dashboard and duplicate-review screens.
+The exact workflow for the live demo. It covers every user-facing feature,
+in an order that tells one story: a Patient owns their record, a Clinician
+reads it only with consent, every access is recorded, and withdrawing
+consent takes effect immediately.
 
-**Rehearsal status:** walked through once, end to end, against `docker
-compose up --build` on the author's existing clone, before the shadcn/ui
-rebuild (PR #59). **Not** yet re-rehearsed against the rebuilt UI, **not**
-on a fresh `git clone`, and not by anyone other than the author. Issue #56
-asks for a rehearsal on a machine that is not the author's; that has not
-happened and should not be assumed done.
+Exact seeded IDs, the backend checks and the teardown steps are in
+[`RUNNING.md`](../RUNNING.md). This file covers what to click and what to
+say while doing it.
 
-Screen names, labels and buttons below were re-checked on 2026-09-23
-against the English catalogs (`frontend/src/i18n/messages/en/`) at the
-post-#59 tree. That is a check against the source, not a live rehearsal.
+## Status: read before rehearsing
+
+- **Fixed 2026-09-28:** the consent grant form now asks for the password
+  and calls `/auth/step-up` first, and only Provider Staff see "File new
+  entry" (patients can't file; the button used to return 403). Both
+  checked against the live stack. The e2e suite mocks the API, so a live
+  run is still the only proof that the real backend agrees.
+- **Rehearsal:** one walk-through, on the author's own clone, before the
+  shadcn/ui rebuild (PR #59). It has not been re-rehearsed on the rebuilt
+  UI or on a fresh `git clone`, and nobody other than the author has
+  run it. #56 asks for a rehearsal on a machine that is not the author's.
+- **Locales:** Hindi, Tamil and Malayalam have not been reviewed by a
+  native speaker. See [`locale-review.md`](locale-review.md).
+
+## Feature coverage
+
+| Feature | Step |
+|---|---|
+| Registration, email verification (Mailpit) | 1 |
+| Seeded logins, one per role | 2 |
+| Provider Staff files a Medical Entry (coded fields, document attachment) | 3 |
+| Timeline: chronological, filterable by type, label as well as colour | 4 |
+| Consent grant: one named clinician, scoped, mandatory expiry, step-up | 5 |
+| Clinician reads a record with consent | 6 |
+| "Who accessed my records" audit view | 7 |
+| Revoke with no step-up | 8 |
+| Immediate lockout with 404, not 403 | 9 |
+| Break-glass emergency access, patient banner, CRITICAL audit | 10 |
+| Notifications and per-channel preferences | 11 |
+| Analytics computed on read through `accessible_entries` | 12 |
+| Admin dashboard with no clinical data | 13 |
+| Duplicate review, human-only merge, reversal | 14 |
+| Four locales; clinical content never translated | 15 |
+
+Not demonstrable in the UI: corrections. The backend supersedes entries
+and the entry detail screen shows "This entry corrects an earlier one.",
+but no screen files a correction. Mention it at step 3 instead of showing it.
+
+## How email verification works (Mailpit)
+
+Mailpit is a fake mail server running as a local container. It accepts
+every message sent to it on SMTP port 1025 and delivers none of them. It
+shows them in a web inbox at `http://localhost:8025` instead.
+
+**Why it needs no credentials:** it never talks to a real mail provider
+(Gmail, SES, and so on), so there is nothing to log in to. The backend
+connects to `mailpit:1025` inside the Compose network with no
+authentication (`backend/app/adapters/identity.py`,
+`backend/app/adapters/notifications.py`), and Mailpit catches every
+message whatever the recipient address. `test.patient@example.com` works
+because the mail never leaves the machine.
+
+**Configuration:** none needed. `compose.yaml` already sets it up:
+
+| Setting | Where | Value |
+|---|---|---|
+| `SMTP_HOST` / `SMTP_PORT` | `backend` env | `mailpit` / `1025` |
+| `PUBLIC_BASE_URL` | backend env, defaults in code | `http://localhost`; the verify link is built from it |
+| `MAIL_FROM` | backend env, defaults in code | `no-reply@pulse.local` |
+| Inbox UI | `mailpit` publishes `8025` | `http://localhost:8025` |
+
+**Flow:** register, and the backend stores a challenge in Redis (it
+expires) and emails the link
+`{PUBLIC_BASE_URL}/{locale}/verify?challenge=…&token=…`. Open it from
+Mailpit and the account is verified.
+
+**If the app runs anywhere other than `localhost`,** set
+`PUBLIC_BASE_URL` to the address the audience's browser uses, or the
+link in the email points at the wrong host. Switching to real email is
+a change of environment variables only (`SMTP_HOST`, `SMTP_PORT`,
+`MAIL_FROM`); the code does not change. Real SMTP providers need
+authentication, though, and the current adapter does not send any.
 
 ## Setup (before the audience is in the room)
 
 ```bash
-git clone https://github.com/moneytosms/Pulse.git   # or cd into an existing clone
-cd Pulse
-docker compose up --build      # or: uv run run.py  (backend healthy first, then frontend)
+git clone https://github.com/moneytosms/Pulse.git && cd Pulse
+docker compose up --build      # or: uv run run.py
+docker compose ps              # wait until all six are healthy
 ```
 
-Always pass `--build`. Without it, Compose reuses whatever image already
-exists, and an old frontend image serves an old build: the landing page
-loads but every other route 404s. `run.py` always builds.
+Always pass `--build`. Without it, Compose reuses an old frontend image:
+the landing page loads but every other route returns 404.
 
-Wait for all six containers healthy (`docker compose ps`). First boot runs
-migrations and seeds identity data automatically — no separate seed step.
+To start from clean seed data (safe, because the seed is deterministic):
 
-- App: `http://localhost` (Caddy, port 80). Port 3000 is not published to
-  the host by design (ADR-0012): the browser must reach `/api` on the same
-  origin.
-- Mailpit inbox (verification emails): `http://localhost:8025`
+```bash
+docker compose down -v && docker compose up --build
+```
 
-Seeded accounts all use the password `Pulse@demo1` and have quick-login
-buttons on `/en/login`: **Patient (EN)** (`demo.patient.en@example.com`),
-**Patient (HI)**, **Provider staff**, **Clinician**
-(`clinician0@example.com`) and **Administrator** (`admin0@example.com`).
-The Administrator has no Patient row, by construction (ADR-0007).
+Open three windows:
 
-## Part 1 — the demo spine (#56)
+1. **Patient:** `http://localhost/en/login`
+2. **Clinician:** a private window, `http://localhost/en/login`
+3. **Mailpit:** `http://localhost:8025`
 
-All of this is one continuous story about **Priya**, a patient, and **Dr.
-Fathima Rasheed**, a clinician who initially has no access to her record.
+All seeded accounts use the password `Pulse@demo1` and have quick-login
+buttons on `/en/login`.
 
-1. **Signup.** Go to `/en/register`. Fill in an email, a password, choose
-   "Patient", submit. Land on "Confirm your email address"
-   (`/en/verify-pending`). Open `http://localhost:8025`, find the
-   verification email, click the link. Say: *every account starts
-   unverified — this is the DPDP-shaped consent story starting at account
-   creation, not at first clinical read.*
+| Button | Email | Patient ID |
+|---|---|---|
+| Patient (EN) | `demo.patient.en@example.com` | `0c96112a-1653-5403-999c-30ec1ef6dda8` |
+| Patient (HI) | `demo.patient.hi@example.com` | `3688d458-8442-5c8a-863d-362215ef3c6c` |
+| Provider staff | `staff000@example.com` | none |
+| Clinician | `clinician0@example.com` | none |
+| Administrator | `admin0@example.com` | none (ADR-0007) |
 
-2. **Log in** as the new account (or use the **Patient (EN)** quick-login
-   button on `/en/login` — `demo.patient.en@example.com` — to skip ahead
-   with a patient who already has history).
+Keep the Patient ID above ready to paste. There is no patient search.
 
-3. **Upload.** Copy the **Patient ID** from `/en/profile` ("Your
-   profile"); the entry form asks for it. For `demo.patient.en` it is
-   `0c96112a-1653-5403-999c-30ec1ef6dda8`. Go to `/en/timeline/new`. File
-   a Diagnosis entry: pick "Diagnosis", set "Occurred at", code system "ICD-10", code
-   "E11", display name "Type 2 diabetes mellitus". Submit → "View entry".
-   Say: *this is a Provider or the patient themself filing a Medical
-   Entry — never editable in place after this point, only superseded.*
+## Part 1: consent and access (the graded spine)
 
-4. **Timeline.** Go to `/en/timeline`. The filed entry appears, newest
-   first. Point out the entry-type filter and the "Critical" label (never
-   colour alone — `frontend.md`).
+1. **Register and verify.** Go to `/en/register`. Enter any email and a
+   password of at least 12 characters (for example `TestPassword123!`) and
+   submit — sign-up creates a Patient, so there is no role choice. You land
+   on "Confirm your email address".
+   In Mailpit, open "Verify your Pulse account" and click the link.
+   *Say:* every account starts unverified, and the email went to a local
+   catcher, so nothing leaves this laptop.
 
-5. **Grant consent.** Go to **Access** (`/en/consent`) → "Grant access"
-   (`/en/consent/new`). "Clinician email": `clinician0@example.com`.
-   Leave every "Entry types" box unticked to grant all types. "Purpose":
-   "Treatment". Set "Access expires". Submit → "Access granted". An
-   email that is not a registered Clinician is rejected ("No clinician is
-   registered with that email."). Say: *consent
-   is granted to one named clinician, never an organisation, and it always
-   has a mandatory expiry.*
+2. **Log in with history.** In the Patient window, click **Patient (EN)**.
+   A new signup has an empty record, so the rest of the demo uses a
+   seeded patient.
 
-6. **Clinician reads the record.** Open a second (private/incognito)
-   window, log in as **Clinician** (`clinician0@example.com` quick-login).
-   It lands on "Clinician access" (`/en/clinician`, nav: **Patients**).
-   Paste the Patient ID into "Patient ID" → "Open record". "Patient
-   record" lists the Diagnosis entry. Say: *this read is happening because of the consent grant, not
-   because of the clinician's role — a Clinician role alone grants
-   nothing.*
+3. **File an entry (as Provider Staff).** Only Provider Staff can file.
+   In the Clinician window, click **Provider staff**. Under **Patients**,
+   paste the Patient ID, click "Open record", then **File new entry**.
+   The Patient ID is already filled in. Choose "Diagnosis" and set
+   "Occurred at". Enter code system `ICD-10`, code `E11` and display name
+   `Type 2 diabetes mellitus`. Attach a PDF and point out the upload
+   progress. Submit, then click "View entry". Log this window out after.
+   *Say:* providers contribute records and patients own them; a Patient
+   can't file clinical entries. Entries are never edited in place. A
+   correction inserts a new entry and marks the old one superseded.
 
-7. **Patient's own audit view.** Back in Priya's window, go to `/en/audit`
-   — "Who accessed my records". The clinician's read appears, with the
-   clinician's name and provider organisation, never any clinical content.
-   Say: *this is one row per access, not per entry viewed — a 50-entry
-   timeline read is still one `ENTRY_VIEWED` audit event.*
+4. **Timeline.** In the Patient window, go to `/en/timeline`. The new
+   entry is on top. Show the entry-type filter and the "Critical" label on an abnormal lab.
+   *Say:* colour never carries meaning alone; there is always a label.
 
-8. **Revoke.** Go to `/en/consent`, find the clinician's grant, click
-   "Revoke", confirm. No step-up verification is asked here — say: *this
-   is deliberate; withdrawing access must be the frictionless direction.*
+5. **Grant consent.** Go to **Access**, "Grant access" (`/en/consent/new`). Enter
+   `clinician0@example.com` as "Clinician email" and leave all "Entry
+   types" unticked, which grants every type. Set "Purpose" to
+   "Treatment" and set "Access expires". Enter `Pulse@demo1` in "Confirm
+   with your password" (step-up) and submit.
+   *Say:* consent goes to one named clinician, never an organisation, it
+   always expires, and granting it asks for your password again.
+   Also show that an email which is not a registered clinician gets
+   "No clinician is registered with that email."
 
-9. **Clinician locked out.** Back in the clinician's window, reload the
-   patient record page. It now shows "Record not found" —
-   the exact same message a genuinely nonexistent patient ID would
-   produce. Say: *this is a 404, not a 403 — a 403 would confirm the
-   record exists, which itself is sensitive information. Revocation took
-   effect immediately, mid-session, because permission is never cached.*
+6. **Clinician reads.** In the Clinician window, click **Clinician**.
+   You land on "Clinician access" (`/en/clinician`). Paste the Patient ID
+   and click "Open record". The Diagnosis entry is listed. Open it.
+   *Say:* this works because of the consent grant. The Clinician role on
+   its own gives no access.
 
-   *Optional:* the same screen offers **Emergency access** (break-glass):
-   a written justification opens the record for 60 minutes, is recorded
-   in the audit log, and the patient sees an "Emergency access to your
-   record" banner.
+7. **Audit view.** In the Patient window, open `/en/audit` ("Who
+   accessed my records"). The clinician's read is listed with their name
+   and organisation and no clinical content.
+   *Say:* one audit event per access, not per row. The audit table is
+   append-only by a database GRANT.
 
-## Part 2 — Phase 4 screens
+8. **Revoke.** Go to `/en/consent`, click "Revoke" on the grant and
+   confirm. There is no password prompt.
+   *Say:* withdrawing access is deliberately the easy direction.
 
-Still as the patient from Part 1 (needs a few filed entries with lab
-values to show something on the analytics screen — the seeded demo
-patients have this already; a freshly-registered account filed in Part 1
-will look sparse, so switch to `demo.patient.en@example.com` for this
-part if you started from a brand-new signup).
+9. **Lockout.** In the Clinician window, reload the record. It shows
+   "Record not found", the same as for a patient ID that doesn't exist.
+   *Say:* this is a 404, not a 403, because a 403 would reveal that the
+   person is a patient. Revocation applied mid-session because
+   permissions are never cached.
 
-10. **Analytics.** Go to `/en/analytics` — "Your health analytics". Walk
-    through visit frequency, active medications, and the data-quality
-    flags section (e.g. "No contact phone number is on file for you.").
-    Say: *every chart here is computed on read, through the same
-    consent-aware query path as the timeline — there is no stored insight
-    table to go stale or leak.*
+10. **Break-glass.** On the same screen, use **Emergency access**. Enter a
+    written justification. The record opens for 60 minutes. In the
+    Patient window, reload: an "Emergency access to your record" banner
+    appears, and the access is in `/en/audit`.
+    *Say:* emergencies aren't blocked, but they are loud: a CRITICAL
+    audit event and an immediate notification to the patient.
 
-11. **Admin dashboard.** Switch to the **Administrator** quick-login
-    (`admin0@example.com`) on `/en/login`. Go to `/en/admin`. Say: *an Administrator reads no clinical data on
-    any screen, ever — this dashboard only ever shows identity fields and
-    counts.*
+11. **Notifications.** As the patient, open `/en/notifications`. The
+    break-glass notice is there. Open `/en/notifications/preferences`.
+    *Say:* mandatory events (break-glass, for example) don't appear as
+    toggles at all, because they can't be turned off. Notifications carry
+    no clinical data.
 
-12. **Duplicate review.** Click through to `/en/admin/duplicates`. If the
-    queue is empty, say so plainly rather than skipping the screen —
-    the seeded planted-duplicate pairs may already have been reviewed in
-    an earlier session. If a candidate is present: point out that only
-    name, date of birth, phone, account status and "Records on file" are
-    shown. Walk through "Merge", then find it under "Reversible merges",
-    which lists every unreversed merge by any administrator, across
-    sessions. "Reverse merge" moves the entries back. "Not a duplicate"
-    dismisses a candidate without merging.
+## Part 2: analytics, admin, deduplication, locales
 
-## Fallback notes
+12. **Analytics.** As **Patient (EN)**, open `/en/analytics`. Show the lab
+    trend picker, visit frequency, active medications and the data-quality
+    flags.
+    *Say:* every chart is computed when the page loads, through the same
+    consent filter as the timeline. There is no stored insight table to
+    go stale or leak.
 
-- If Mailpit shows no email after signup, check `docker compose logs
-  backend` for an SMTP connection error before assuming the account
-  didn't register — registration and email delivery are decoupled.
-- Locale switching (`/en` ↔ `/hi` ↔ `/ta` ↔ `/ml`) works on every screen
-  above; see `docs/locale-review.md` before demonstrating Tamil or
-  Malayalam screens, since neither has had a native-speaker review pass.
+13. **Admin dashboard.** Log in as **Administrator** and open `/en/admin`.
+    *Say:* administrators see identity fields and counts only, never
+    clinical data, on any endpoint.
+
+14. **Duplicate review.** Open `/en/admin/duplicates`. A candidate shows
+    name, date of birth, phone, account status and "Records on file", and
+    nothing clinical. Click "Merge". It appears under "Reversible merges";
+    "Reverse merge" undoes it, and "Not a duplicate" dismisses a
+    candidate. If the queue is empty, earlier sessions reviewed the seeded
+    pairs: say so, or reset with `docker compose down -v`.
+    *Say:* the seed plants duplicates and near-miss non-duplicates, so
+    precision can be measured. Merges are human-only and reversible.
+
+15. **Locales.** Log in as **Patient (HI)**, or switch `/en` to `/hi`, `/ta`
+    or `/ml` on any screen. Open the timeline.
+    *Say:* the interface is translated, but clinical content such as
+    "Type 2 diabetes mellitus" stays exactly as recorded, because
+    translating it would invent a medical claim. Dates and numbers come
+    from `Intl` with lakh grouping. Mention that Tamil and Malayalam
+    are machine-translated and unreviewed.
+
+## Fallbacks
+
+- **No email in Mailpit:** run `docker compose logs backend | rg -i smtp`.
+  Registration and email delivery are decoupled, so the account may exist
+  anyway.
+- **Every route but `/` returns 404:** the frontend image is stale. Run
+  `docker compose up --build frontend`.
+- **Local `next build` crashes on `/_global-error`:** the shell exports
+  `NODE_ENV=development`. Use `NODE_ENV=production npm run build`.
