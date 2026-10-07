@@ -80,6 +80,15 @@ class BreakGlassGrant(PulseSchema):
     expires_at: datetime
 
 
+class ConsentedPatient(PulseSchema):
+    """Identity-only row for a Clinician's "patients who granted me
+    access" list — never a clinical field (clinical-safety.md)."""
+
+    patient_id: UUID
+    full_name: str
+    expires_at: datetime
+
+
 class ClinicianLookup(PulseSchema):
     """Exact-email resolution of a Clinician for the grant form — the id a
     `ConsentCreate.grantee_user_id` needs, and nothing more."""

@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   // Repo already has a root CLAUDE.md with the real conventions; don't let
   // `next dev` write a second, generic one into frontend/.
   agentRules: false,
+ allowedDevOrigins: ["*.trycloudflare.com"],
 };
 
 export default withNextIntl(nextConfig);

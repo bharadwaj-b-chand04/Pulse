@@ -32,6 +32,7 @@ from app.modules.consent.schemas import (
     ClinicianLookup,
     Consent,
     ConsentCreate,
+    ConsentedPatient,
     RevocationRequest,
 )
 
@@ -66,6 +67,19 @@ async def list_consents(
     limit: int = 50,
 ) -> Page[Consent]:
     return await service.list_consents(session, ctx.actor, patient_id, cursor=cursor, limit=limit)
+
+
+@router.get(
+    "/consents/granted-to-me",
+    dependencies=[requires(Permission.CONSENT_READ_GRANTED)],
+)
+async def list_consented_patients(
+    ctx: CurrentUser,
+    session: SessionDep,
+    cursor: str | None = None,
+    limit: int = 50,
+) -> Page[ConsentedPatient]:
+    return await service.list_consented_patients(session, ctx.actor, cursor=cursor, limit=limit)
 
 
 @router.post(

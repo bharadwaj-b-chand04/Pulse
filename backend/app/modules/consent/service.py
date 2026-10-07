@@ -53,6 +53,7 @@ from app.modules.consent.schemas import (
     ClinicianLookup,
     Consent,
     ConsentCreate,
+    ConsentedPatient,
     ConsentStatus,
     RevocationRequest,
 )
@@ -232,6 +233,29 @@ async def list_consents(
         session, own.id, cursor=cursor, limit=limit
     )
     return Page[Consent](items=[_to_wire(r) for r in rows], next_cursor=next_cursor)
+
+
+async def list_consented_patients(
+    session: AsyncSession, actor: Actor, *, cursor: str | None = None, limit: int = 50
+) -> Page[ConsentedPatient]:
+    """Patients whose live Consent names this Clinician (`actor.user_id` is
+    always the grantee — never a request parameter). Identity only: no
+    entry types, no counts (clinical-safety.md)."""
+    rows, next_cursor = await repository.list_live_permissions_for_grantee(
+        session, actor.user_id, now=datetime.now(UTC), cursor=cursor, limit=limit
+    )
+    items: list[ConsentedPatient] = []
+    # ponytail: one get_patient per row (<=100); batch if lists grow.
+    for row in rows:
+        patient = await users_service.get_patient(session, row.patient_id)
+        if patient is None:
+            continue
+        items.append(
+            ConsentedPatient(
+                patient_id=patient.id, full_name=patient.full_name, expires_at=row.expires_at
+            )
+        )
+    return Page[ConsentedPatient](items=items, next_cursor=next_cursor)
 
 
 async def request_break_glass(

@@ -51,3 +51,9 @@ export interface ClinicianLookup {
   userId: string;
   email: string;
 }
+
+export interface ConsentedPatient {
+  patientId: string;
+  fullName: string;
+  expiresAt: string;
+}
