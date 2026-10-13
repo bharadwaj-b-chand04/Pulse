@@ -41,7 +41,7 @@ type LoadState =
 
 function ProfileSkeleton() {
   return (
-    <Card aria-hidden="true" className={cn(styles.card, "gap-0 py-0")}>
+    <Card aria-hidden="true" className={cn("material-card", styles.card, "gap-0 py-0")}>
       <div
         className={cn(
           styles.header,
@@ -245,7 +245,7 @@ export default function ProfilePage() {
     <section className="space-y-8">
       {header}
 
-      <Card className={cn(styles.card, styles.arrive, "gap-0 py-0")}>
+      <Card className={cn("material-card", styles.card, styles.arrive, "gap-0 py-0")}>
         <div
           className={cn(
             styles.header,
