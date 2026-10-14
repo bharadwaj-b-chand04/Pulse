@@ -1,0 +1,33 @@
+---
+// Real code from the repo, with the file it came from. Excerpts are trimmed,
+// never rewritten: if the source changes, the excerpt must change with it.
+import { Code } from "astro:components";
+import { blob } from "../data/facts";
+
+interface Props {
+  code: string;
+  lang: "python" | "sql" | "typescript" | "tsx" | "yaml" | "bash" | "json" | "caddyfile" | "ini";
+  file: string; // repo-relative path
+  lines?: string; // e.g. "98-134"
+}
+const { code, lang, file, lines } = Astro.props;
+const href = blob(file) + (lines ? `#L${lines.replace("-", "-L")}` : "");
+---
+
+<figure class="codeblock">
+  <figcaption>
+    <a href={href} rel="noopener">{file}{lines && <span>, lines {lines}</span>}</a>
+  </figcaption>
+  <Code code={code.trim()} lang={lang} themes={{ light: "github-light", dark: "github-dark-dimmed" }} defaultColor={false} />
+</figure>
+
+<style>
+  .codeblock { margin: 0; min-width: 0; }
+  figcaption {
+    font-size: 0.82rem;
+    margin-bottom: 0.5rem;
+    overflow-wrap: anywhere;
+  }
+  figcaption a { color: var(--muted-foreground); }
+  figcaption a:hover { color: var(--primary); }
+</style>

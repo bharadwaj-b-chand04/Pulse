@@ -1,0 +1,28 @@
+---
+import Base from "../layouts/Base.astro";
+import Spine from "../components/Spine.astro";
+import Hero from "../sections/Hero.astro";
+import ConsentEngine from "../sections/ConsentEngine.astro";
+---
+
+<Base
+  title="Pulse, a patient-owned health record"
+  description="Pulse is a lifelong electronic health record where patients own their history, clinicians read it only with consent, and every access is recorded. The story of how it is built."
+>
+  <Hero />
+  <div class="story" id="story">
+    <Spine />
+    <ConsentEngine />
+  </div>
+</Base>
+
+<style>
+  .story { position: relative; padding-bottom: 4rem; }
+</style>
+
+<script>
+  import { initReveals, initSteps, initCounts } from "../scripts/motion";
+  initReveals();
+  initSteps();
+  initCounts();
+</script>
