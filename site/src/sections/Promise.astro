@@ -32,14 +32,14 @@ const clauses = [
       <article class="step" data-step>
         <h3>Patients own their history</h3>
         <p>
-          The Patient row is the root of everything clinical. Medical Entries, data-quality flags and duplicate-review
-          items all point at <code>patient.id</code>. There is no separate "patient record" entity that could drift from
+          The Patient row is the root of everything clinical. Medical Entries, consents and audit events all
+          point at <code>patient.id</code>. There is no separate "patient record" entity that could drift from
           the person.
         </p>
         <p>
           <code>patient.user_id</code> is nullable on purpose. A Patient can exist before the person has an account, so a
-          Provider can file for someone who has never registered. The demo data has {seed.unclaimed} of its {seed.patients}
-          patients in that state. The screen that creates an unclaimed Patient, and the step where the person later claims
+          Provider can file for someone who has never registered. The demo data has {seed.unclaimed} of its
+          {`${seed.patients} patients`} in that state. The screen that creates an unclaimed Patient, and the step where the person later claims
           it, are not built; filing for an existing Patient ID is.
         </p>
         <p class="how">

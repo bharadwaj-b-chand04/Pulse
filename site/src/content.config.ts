@@ -11,7 +11,7 @@ const guide = defineCollection({
     pattern: GUIDE_PATTERNS,
     generateId: ({ entry }) => slugFor(entry),
   }),
-  schema: z.object({}).passthrough(),
+  schema: z.looseObject({}),
 });
 
 export const collections = { guide };

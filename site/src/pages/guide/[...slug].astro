@@ -2,7 +2,6 @@
 import { getCollection, render, type CollectionEntry } from "astro:content";
 import Base from "../../layouts/Base.astro";
 import { blob } from "../../data/facts";
-import { slugFor } from "../../lib/slug.mjs";
 
 export async function getStaticPaths() {
   const docs = await getCollection("guide");
