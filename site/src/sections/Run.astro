@@ -145,6 +145,7 @@ const steps = [
     cursor: pointer;
   }
   .cmd__copy:hover { border-color: var(--primary); color: var(--primary); }
+  :global(html:not(.js)) .cmd__copy { display: none; }
   .cmd__copy[data-done] { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
 
   .logins { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
@@ -185,7 +186,17 @@ const steps = [
         }
         ta.remove();
       }
-      btn.textContent = ok ? "Copied" : "Press Ctrl+C";
+      if (!ok) {
+        const code = btn.closest(".cmd")?.querySelector("code");
+        const selection = window.getSelection();
+        if (code && selection) {
+          const range = document.createRange();
+          range.selectNodeContents(code);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      }
+      btn.textContent = ok ? "Copied" : "Copy selected text";
       btn.toggleAttribute("data-done", ok);
       setTimeout(() => {
         btn.textContent = "Copy";

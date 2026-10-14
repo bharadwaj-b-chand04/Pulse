@@ -170,7 +170,6 @@ const pieces = [
     const axis = fig.querySelector<SVGPathElement>("[data-axis]")!;
     const stage = fig.closest<HTMLElement>("[data-stage]")!;
     const len = axis.getTotalLength();
-    fig.dataset.phase = "apart";
 
     const build = (trigger: Element, start: string, end: string) => {
       const tl = gsap.timeline({
@@ -197,8 +196,16 @@ const pieces = [
         .fromTo(dots, { scale: 0, transformOrigin: "50% 50%" }, { scale: 1, duration: 0.25, stagger: 0.08 }, 0.9);
     };
 
-    const mm = gsap.matchMedia();
-    mm.add("(min-width: 1000px)", () => build(stage, "top 55%", "bottom 85%"));
-    mm.add("(max-width: 999px)", () => build(fig, "top 80%", "bottom 35%"));
+    // Prepare the SVG transforms as the reader approaches the figure.
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      observer.disconnect();
+      if (reducedMotion()) return;
+      fig.dataset.phase = "apart";
+      const mm = gsap.matchMedia();
+      mm.add("(min-width: 1000px)", () => build(stage, "top 55%", "bottom 85%"));
+      mm.add("(max-width: 999px)", () => build(fig, "top 80%", "bottom 35%"));
+    }, { rootMargin: "200px 0px" });
+    observer.observe(fig);
   }
 </script>

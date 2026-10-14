@@ -1,7 +1,6 @@
 ---
 // Real code from the repo, with the file it came from. Excerpts are trimmed,
 // never rewritten: if the source changes, the excerpt must change with it.
-import { Code } from "astro:components";
 import { blob } from "../data/facts";
 
 interface Props {
@@ -18,7 +17,10 @@ const href = blob(file) + (lines ? `#L${lines.replace("-", "-L")}` : "");
   <figcaption>
     <a href={href} rel="noopener">{file}{lines && <span>, lines {lines}</span>}</a>
   </figcaption>
-  <Code code={code.trim()} lang={lang} themes={{ light: "github-light", dark: "github-dark-dimmed" }} defaultColor={false} />
+  <details>
+    <summary>Inspect the source excerpt</summary>
+    <pre class="code" tabindex="0" data-language={lang}><code>{code.trim()}</code></pre>
+  </details>
 </figure>
 
 <style>
@@ -30,4 +32,17 @@ const href = blob(file) + (lines ? `#L${lines.replace("-", "-L")}` : "");
   }
   figcaption a { color: var(--muted-foreground); }
   figcaption a:hover { color: var(--primary); }
+  summary {
+    min-height: 44px;
+    padding: 0.65rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card);
+    cursor: pointer;
+    font-size: 0.92rem;
+    font-weight: 500;
+  }
+  details[open] summary { margin-bottom: 0.6rem; }
+  summary:hover { color: var(--primary); }
+  pre code { font-size: inherit; }
 </style>

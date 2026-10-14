@@ -1,6 +1,7 @@
 ---
 import Chapter from "../components/Chapter.astro";
 import CodeBlock from "../components/CodeBlock.astro";
+import { sourceExcerpt } from "../lib/source";
 import { stats, blob } from "../data/facts";
 import { ciJobs, liveSpine } from "../data/story-e";
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -26,21 +27,7 @@ def test_coverage_check_bites_on_an_undeclared_route() -> None:
     assert offending == ["GET /api/v1/deliberately-undeclared"]
 `;
 
-const revokeTest = `
-async def test_permission_is_rechecked_when_the_statement_executes(
-    db_session: AsyncSession, db_engine: AsyncEngine, app_database_url: str
-) -> None:
-    ...
-    stmt = await records_repo.accessible_entries(
-        db_session, Actor(user_id=clinician.id, role=Role.CLINICIAN), patient.id
-    )
-    async with async_sessionmaker(db_engine)() as revoker:
-        await revoker.execute(
-            delete(AccessPermission).where(AccessPermission.patient_id == patient.id)
-        )
-        await revoker.commit()
-    assert (await db_session.execute(stmt)).scalars().all() == []
-`;
+const revokeTest = sourceExcerpt("backend/tests/test_architecture_regressions.py", 79, 101);
 
 const negatives = [
   {
@@ -117,7 +104,7 @@ const negatives = [
     </div>
   </div>
 
-  <div class="pipe" data-pipe>
+  <div class="pipe" data-proof-pipeline>
     <div class="pipe__head">
       <h3>What CI runs on every pull request</h3>
       <button class="btn" type="button" data-replay>Replay the pipeline</button>
@@ -191,7 +178,7 @@ const negatives = [
     <div class="neg__code">
       <CodeBlock code={revokeTest} lang="python" file="backend/tests/test_architecture_regressions.py" lines="79-101" />
       <p class="neg__cap">
-        The last one in full. Nothing is cached: the revoker deletes the permission row, and the next execution of the
+        The test in full. Nothing is cached: the revoker deletes the permission row, and the next execution of the
         query sees it gone. A statement already running when revocation commits is not interrupted, which{" "}
         <a href={`${base}/guide/adr/0016-transactional-audit-and-safe-identity-merges`}>ADR-0016</a> states plainly.
       </p>
@@ -231,7 +218,7 @@ const negatives = [
     gap: 0.1rem;
     padding: 0.55rem 0.75rem 0.55rem 0.9rem;
     border: 1px solid var(--border);
-    border-left: 3px solid var(--primary);
+    border-left: 1px solid var(--primary);
     border-radius: 10px;
     background: var(--primary-soft);
     position: relative;
@@ -289,7 +276,7 @@ const negatives = [
 <script>
   import { reducedMotion } from "../scripts/motion";
 
-  const pipe = document.querySelector<HTMLElement>("[data-pipe]");
+  const pipe = document.querySelector<HTMLElement>("[data-proof-pipeline]");
   const replay = document.querySelector<HTMLButtonElement>("[data-replay]");
   if (pipe && replay && !reducedMotion()) {
     pipe.classList.add("is-armed");

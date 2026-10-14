@@ -26,8 +26,6 @@ export const stats = {
   liveSpecs: 1, // frontend/e2e-live/demo-spine.live.spec.ts, real stack, no mocks
   ciLints: 4, // backend/scripts/lint_{cross_module_imports,module_sql,entry_query,actor_first}.py
   composeServices: 6, // compose.yaml
-  commits: 118, // git rev-list --count HEAD at 4ce45c4
-  issues: 52, // gh issue list --state all
 } as const;
 
 export const roles = [

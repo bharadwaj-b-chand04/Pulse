@@ -59,8 +59,8 @@ const items = [
     ],
   },
   {
-    claim: "Audit events and notifications have no field a clinical value could go in.",
-    body: "emit() accepts an AuditMetadata with four fixed fields, not a dictionary. Notification params are a schema that rejects extra fields and allows only a count and typed identifiers. Either would be a second copy of the record outside the consent filter.",
+    claim: "Audit and notification payloads have a deliberately closed shape.",
+    body: "emit() accepts an AuditMetadata with four declared fields rather than an arbitrary dictionary. Notification params reject extra fields and allow only a count and typed identifiers. Clinical contents must never be copied into either payload. The audit justification is free text, so this rule still depends on what callers and users put there.",
     links: [
       { t: "audit/service.py", h: blob("backend/app/modules/audit/service.py") },
       { t: "notifications/schemas.py", h: blob("backend/app/modules/notifications/schemas.py") },

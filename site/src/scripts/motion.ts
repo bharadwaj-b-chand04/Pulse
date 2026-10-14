@@ -38,11 +38,17 @@ export function initSpine() {
   const container = host.parentElement as HTMLElement;
 
   let trigger: ScrollTrigger | undefined;
+  let previousWidth = -1;
+  let previousHeight = -1;
 
-  const layout = () => {
+  const layout = (force = false) => {
+    const width = container.clientWidth;
+    const height = container.offsetHeight;
+    if (!force && width === previousWidth && height === previousHeight) return false;
+    previousWidth = width;
+    previousHeight = height;
     const x = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--spine-x")) || 20;
     const top = container.getBoundingClientRect().top + scrollY;
-    const height = container.offsetHeight;
     const beats = [...container.querySelectorAll<HTMLElement>("[data-beat] .chapter__marker")].map(
       (m) => m.getBoundingClientRect().top + scrollY - top + 7,
     );
@@ -56,7 +62,7 @@ export function initSpine() {
     trigger?.kill();
     if (reducedMotion()) {
       ink.style.strokeDashoffset = "0";
-      return;
+      return true;
     }
     // Ink follows the reader: the drawn tip sits ~60% down the viewport.
     trigger = ScrollTrigger.create({
@@ -69,26 +75,54 @@ export function initSpine() {
       },
     });
     ink.style.strokeDashoffset = `${len * (1 - trigger.progress)}`;
+    return true;
   };
 
   let raf = 0;
-  const schedule = () => {
+  let forceLayout = false;
+  const schedule = (force = false) => {
+    forceLayout ||= force;
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(() => {
-      layout();
-      ScrollTrigger.refresh();
+      const changed = layout(forceLayout);
+      forceLayout = false;
+      if (changed) ScrollTrigger.refresh();
     });
   };
-  new ResizeObserver(schedule).observe(container);
-  document.fonts?.ready.then(schedule);
-  layout();
+  const start = () => {
+    new ResizeObserver(() => schedule()).observe(container);
+    document.fonts?.ready.then(() => schedule(true));
+    document.addEventListener("toggle", () => schedule(true), true);
+    layout();
+  };
+  // The story is below the opening viewport. Its static fallback stays visible
+  // until the reader approaches it; avoid measuring every chapter during load.
+  if (!reducedMotion() && container.getBoundingClientRect().top > innerHeight) {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        observer.disconnect();
+        start();
+      }
+    });
+    observer.observe(container);
+  } else start();
 }
 
 /* ---------- Reveal: SVG strokes draw, groups stagger in, once ---------- */
 
 export function initReveals(root: ParentNode = document) {
   if (reducedMotion()) return;
+  const onceVisible = (target: Element, run: () => void) => {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        observer.disconnect();
+        if (!reducedMotion()) run();
+      }
+    }, { rootMargin: "0px 0px -20% 0px" });
+    observer.observe(target);
+  };
   root.querySelectorAll<SVGGeometryElement>("[data-draw]").forEach((el) => {
+    onceVisible(el.closest("[data-draw-root]") ?? el, () => {
     const len = el.getTotalLength();
     gsap.fromTo(
       el,
@@ -97,18 +131,19 @@ export function initReveals(root: ParentNode = document) {
         strokeDashoffset: 0,
         duration: Number(el.dataset.draw) || 1.2,
         ease: "power2.inOut",
-        scrollTrigger: { trigger: el.closest("[data-draw-root]") ?? el, start: "top 75%", once: true },
       },
     );
+    });
   });
   root.querySelectorAll<HTMLElement>("[data-stagger]").forEach((group) => {
+    onceVisible(group, () => {
     gsap.from(group.children, {
       opacity: 0,
       y: 18,
       duration: 0.7,
       ease: "power3.out",
       stagger: Number(group.dataset.stagger) || 0.08,
-      scrollTrigger: { trigger: group, start: "top 80%", once: true },
+    });
     });
   });
 }

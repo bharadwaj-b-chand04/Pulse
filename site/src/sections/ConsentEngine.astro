@@ -1,38 +1,11 @@
 ---
 import Chapter from "../components/Chapter.astro";
 import CodeBlock from "../components/CodeBlock.astro";
+import { sourceExcerpt } from "../lib/source";
 import { consent } from "../data/facts";
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-const excerpt = `
-async def accessible_entries(session, actor: Actor, patient_id: UUID) -> Select:
-    """The subset of a Patient's Medical Entries \`actor\` may read."""
-    conditions = []
-
-    if await actor_owns_patient(session, actor, patient_id):
-        conditions.append(MedicalEntry.patient_id == patient_id)
-
-    provider_id = await provider_id_for_staff_actor(session, actor)
-    if provider_id is not None:
-        conditions.append(and_(
-            MedicalEntry.patient_id == patient_id,
-            MedicalEntry.source_provider_id == provider_id,
-        ))
-
-    if actor.role is Role.CLINICIAN:
-        conditions.append(and_(
-            MedicalEntry.patient_id == patient_id,
-            consent_service.clinical_access_predicate(
-                patient_id, actor.user_id,
-                MedicalEntry.entry_type, MedicalEntry.occurred_at,
-            ),
-        ))
-
-    if not conditions:
-        conditions.append(false())
-
-    return select(MedicalEntry).where(or_(*conditions))
-`;
+const excerpt = sourceExcerpt("backend/app/modules/records/repository.py", 98, 134);
 
 const kinds = [
   { id: "DIAGNOSIS", label: "Diagnosis", text: "Type 2 diabetes mellitus" },
@@ -54,16 +27,19 @@ const kinds = [
     <div class="ce__text">
       <p>
         <code>accessible_entries(actor, patient_id)</code> returns a filter, not a result. Timelines, single entries,
-        analytics and document downloads all start from it. CI fails the build if any other file writes
-        <code>select(MedicalEntry)</code>, so there is no second door to forget about.
+        analytics and document downloads all start from it. The enforcement lint checks for direct
+        <code>select(MedicalEntry)</code> calls outside the records repository. It guards a convention;
+        it is not a proof against every possible bypass.
       </p>
       <p>
-        Try it. Change the consent and send the same request again. Nothing is cached: revoking a consent deletes its
-        permission row in the same transaction, so the very next request is denied.
+        Try this synthetic illustration. Change the consent and send the same request again. Revocation deletes the
+        permission row in the same transaction. Queries starting after that commit see the revocation;
+        an already-running query is not interrupted.
       </p>
     </div>
 
     <div class="sim surface" data-sim>
+      <noscript><p>This illustration shows an active consent. Enable JavaScript to compare active, revoked and expired access.</p></noscript>
       <div class="sim__controls">
         <fieldset class="seg">
           <legend>Patient's consent for Dr. Rao</legend>
@@ -117,7 +93,8 @@ const kinds = [
         </div>
 
         <div class="audit">
-          <p class="audit__title">Patient's audit log</p>
+          <p class="audit__title">Server audit events</p>
+          <p class="audit__note">Denied reads carry no Patient link, so they do not appear in the Patient's audit view.</p>
           <ol class="audit__log" data-audit>
             <li class="audit__row">
               <span class="tag tag--ok">ENTRY_VIEWED</span> Clinician, 4 entries, inside consent
@@ -181,7 +158,7 @@ const kinds = [
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    min-height: 40px;
+    min-height: 44px;
     padding: 0.4rem 0.95rem;
     border-radius: 999px;
     border: 1px solid var(--border);
@@ -242,6 +219,7 @@ const kinds = [
   .result__err { margin: 0.6rem 0 0; font-size: 0.78rem; white-space: pre; overflow-x: auto; }
 
   .audit__title { font-weight: 500; font-size: 0.88rem; margin-bottom: 0.4rem; }
+  .audit__note { font-size: 0.82rem; color: var(--muted-foreground); margin-bottom: 0.6rem; }
   .audit__log { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; max-height: 9.5rem; overflow: hidden; }
   .audit__row { font-size: 0.82rem; color: var(--muted-foreground); display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
   .tag { font-family: var(--font-mono); font-size: 0.72rem; padding: 0.08rem 0.45rem; border-radius: 6px; }
@@ -284,7 +262,14 @@ const kinds = [
       return { state, types };
     };
 
-    const sync = () => { scope.disabled = read().state !== "active"; };
+    const sync = () => {
+      const { state, types } = read();
+      scope.disabled = state !== "active";
+      // The real ConsentCreate schema rejects an empty entry-type list.
+      scope.querySelectorAll<HTMLInputElement>("input").forEach((input) => {
+        input.disabled = types.length === 1 && input.checked;
+      });
+    };
     sim.addEventListener("change", sync);
     sync();
 

@@ -150,8 +150,8 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
   .theme-toggle {
     display: grid;
     place-items: center;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     margin-left: 0.25rem;
     border: 1px solid var(--border);
     border-radius: 50%;
@@ -160,6 +160,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     cursor: pointer;
   }
   .i-moon { display: none; }
+  :global(html:not(.js)) .theme-toggle { display: none; }
   :global(:root[data-theme="dark"]) .i-sun { display: none; }
   :global(:root[data-theme="dark"]) .i-moon { display: block; }
   @media (prefers-color-scheme: dark) {

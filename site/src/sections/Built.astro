@@ -1,6 +1,6 @@
 ---
 import Chapter from "../components/Chapter.astro";
-import { REPO, stats, team, course } from "../data/facts";
+import { REPO, team, course } from "../data/facts";
 import { phases, learned } from "../data/story-e";
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const g = (slug: string) => `${base}/guide/${slug}`;
@@ -101,7 +101,7 @@ const gates = [
           <div>
             <dt>{l.rule}</dt>
             <dd>
-              {l.why} <a href={g(l.link)}>Read more</a>.
+              {l.why} <a href={g(l.link)} aria-label={`Read the reasoning: ${l.rule}`}>Read the reasoning</a>.
             </dd>
           </div>
         ))}
@@ -111,8 +111,8 @@ const gates = [
     <section class="bt__team" aria-labelledby="bt-team">
       <h3 id="bt-team">The team</h3>
       <p>
-        Four people, one slice each, tracked on <a href={issue(17)}>the build plan</a>. So far the repository has
-        {" "}{stats.commits} commits and {stats.issues} issues.
+        Four people, one slice each, tracked on <a href={issue(17)}>the build plan</a>.
+        Names and course credits below await the team's confirmation.
       </p>
       <!-- Placeholders. Replace the values in src/data/facts.ts (team, course); nothing here hard-codes a name. -->
       <ul class="team">

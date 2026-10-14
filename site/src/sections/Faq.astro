@@ -8,7 +8,7 @@ const g = (slug: string) => `${base}/guide/${slug}`;
 const faqs = [
   {
     q: "Why not JWT?",
-    a: "Pulse promises that revoking consent works immediately, and a JWT stays valid until it expires. Making it revocable needs a server-side denylist checked on every request, which is session state again. The usual benefit, stateless scaling, is never collected on a single Compose stack.",
+    a: "Opaque sessions make login-session invalidation a server-side lookup. A self-contained JWT needs an additional check to invalidate it before expiry, and this laptop-scale deployment gains little from stateless authentication. Clinical consent is a separate database check on every read: a valid login session never substitutes for an active permission.",
     links: [{ t: "ADR-0003", s: "adr/0003-opaque-redis-sessions-not-jwt" }],
   },
   {

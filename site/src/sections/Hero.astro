@@ -1,5 +1,6 @@
 ---
 import { stats } from "../data/facts";
+import Screenshot from "../components/Screenshot.astro";
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
 
@@ -60,6 +61,14 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
       </div>
     </figure>
   </div>
+  <details class="hero__app">
+    <summary>See the actual app in light and dark</summary>
+    <p>Captured from the local synthetic demo. The story uses the same burgundy theme and Noto typeface.</p>
+    <div class="hero__captures">
+      <div><h3>Light interface</h3><Screenshot name="home-desktop" alt="The real Pulse public entry page in its light burgundy theme" url="/en" /></div>
+      <div><h3>Dark interface</h3><Screenshot name="home-desktop-dark" alt="The real Pulse public entry page in its dark burgundy theme" url="/en" /></div>
+    </div>
+  </details>
 </section>
 
 <style>
@@ -80,6 +89,12 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     overflow: visible;
     opacity: 0.55;
   }
+  .hero__app { margin-top: 2rem; border-block: 1px solid var(--border); padding-block: 0.8rem; }
+  .hero__app summary { min-height: 44px; align-content: center; cursor: pointer; font-weight: 500; }
+  .hero__app > p { font-size: 0.92rem; color: var(--muted-foreground); margin-block: 0.5rem 1.25rem; }
+  .hero__captures { display: grid; gap: 1.25rem; }
+  .hero__captures h3 { font-size: 1rem; margin-bottom: 0.75rem; }
+  @media (min-width: 900px) { .hero__captures { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .hero__trace path {
     fill: none;
     stroke: var(--primary);
@@ -187,9 +202,9 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
       gsap.set(trace, { strokeDasharray: len, strokeDashoffset: len });
       tl.to(trace, { strokeDashoffset: 0, duration: 1.6, ease: "power2.inOut" }, 0);
     }
-    tl.from("[data-hero-title]", { y: 28, opacity: 0, duration: 0.9 }, 0.15)
-      .from("[data-hero-fade]", { y: 16, opacity: 0, duration: 0.7, stagger: 0.1 }, 0.45)
-      .from("[data-hero-entries] > li", { x: 24, opacity: 0, duration: 0.6, stagger: 0.14 }, 0.7)
+    // Keep the heading and explanation readable at first paint. The trace and
+    // record carry the entrance animation without delaying the main text.
+    tl.from("[data-hero-entries] > li", { x: 24, opacity: 0, duration: 0.6, stagger: 0.14 }, 0.7)
       .from("[data-hero-access]", { y: 12, opacity: 0, scale: 0.98, duration: 0.6 }, 1.35);
   }
 </script>

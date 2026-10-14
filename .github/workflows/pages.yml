@@ -36,6 +36,16 @@ jobs:
       - run: npm ci
       - run: npx astro check
       - run: npm run build
+      - run: npm run verify
+      - run: npx playwright install --with-deps chromium
+      - name: Exercise the built story and guide
+        run: |
+          npm run preview -- --background --host 127.0.0.1 --port 4321
+          node --input-type=module -e 'for(let i=0;i<30;i++){try{if((await fetch("http://127.0.0.1:4321/Pulse/")).ok)process.exit(0)}catch{}await new Promise(r=>setTimeout(r,500))}process.exit(1)'
+          npm test
+      - name: Stop the preview
+        if: always()
+        run: npx astro preview stop
       - name: No placeholder screenshots ship
         run: "! grep -rl 'Screenshot pending' dist"
       - uses: actions/upload-pages-artifact@v5

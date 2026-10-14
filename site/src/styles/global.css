@@ -178,6 +178,8 @@ pre.astro-code, .code {
   background-color: var(--card) !important;
 }
 .astro-code, .astro-code span { color: var(--shiki-light); }
+/* GitHub Dark Dimmed's comment grey is too faint on the burgundy surface. */
+.astro-code span[style*="#768390"] { --shiki-dark: var(--muted-foreground) !important; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .astro-code,
   :root:not([data-theme="light"]) .astro-code span { color: var(--shiki-dark); }
