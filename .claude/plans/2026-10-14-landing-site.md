@@ -88,3 +88,12 @@ Answered 2026-10-14: team + course credits = placeholders, filled at end. Pages 
 
 ## Progress
 <!-- appended per phase -->
+
+### 2026-10-14 session 1
+- P0 facts: done (site/src/data/facts.ts, cited). P1 docs: audit x5 + fixes committed 86a3f6c; linkcheck 0 broken (scratchpad/linkcheck.py).
+- Found + fixed real bug: dedup never triggered; PR #69 merged (seed loader queues candidates; near-misses not queued).
+- P2 scaffold committed 5d4c70a (Hero, ConsentEngine reference chapters, guide, Pagefind). Pages workflow 7a4bdd6; Pages enabled (build_type=workflow).
+- P3 capture + P4 sections A-E delegated to Sonnet worktree agents (branches feat/site-screenshots, feat/site-sections-{a..e}); merge + Opus polish next.
+- Build cmd: `cd site && npm run build && npx astro check`. Screenshot helper: scratchpad/shot.mjs.
+- Batch A merged + fixed (a4770dc); chapters 1-3 wired into index.astro. Still running at usage cutoff: screenshots + sections B-E (worktrees under .claude/worktrees/agent-*, branches feat/site-screenshots, feat/site-sections-{b..e}).
+- Next: merge each branch, wire chapters into index.astro in order (4 record-life, 5 sharing, 6 consent-engine, 7 audit, 8-11, 12-15, 16-21), delete src/pages/preview/*, grep dist for "Screenshot pending" and digit+word joins like "125patients" (Astro drops the space after an expression at line end), Opus read-through, Lighthouse, PR, merge, confirm Pages deploy. Team/course placeholders in facts.ts.
