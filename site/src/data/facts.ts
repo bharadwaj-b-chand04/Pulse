@@ -20,7 +20,7 @@ export const stats = {
   catalogKeys: 540, // leaf keys per locale, frontend/src/i18n/messages/{en,hi,ta,ml}/*.json
   catalogFiles: 14, // per locale
   pages: 20, // frontend/src/app/[locale]/**/page.tsx
-  backendTests: 272, // `uv run pytest --collect-only` (testcontainers Postgres + Redis)
+  backendTests: 273, // `uv run pytest` after #69 (testcontainers Postgres + Redis)
   e2eSpecs: 13, // frontend/e2e/*.spec.ts (mocked API)
   e2eTests: 78, // `npx playwright test --list`
   liveSpecs: 1, // frontend/e2e-live/demo-spine.live.spec.ts, real stack, no mocks
